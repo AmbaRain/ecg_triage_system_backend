@@ -1,5 +1,5 @@
 """
-HelixMind Wearable Triage — FastAPI backend
+Wearable Triage — FastAPI backend
 Run: uvicorn main:app --reload
 """
 
