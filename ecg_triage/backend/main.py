@@ -3,7 +3,7 @@ Wearable Triage — FastAPI backend
 Run: uvicorn main:app --reload
 """
 
-import os, io, json
+import os, io, json, tempfile, struct
 import numpy as np
 from contextlib import asynccontextmanager
 from typing import Optional, List
@@ -16,10 +16,10 @@ from pydantic import BaseModel, Field
 from model import (
     WearableTriageModel, UniversalSeverityEngine, UniversalInputAdapter,
     load_engine, ECG_LEN, PPG_LEN, ECG_FS, PPG_FS, WINDOW_SEC,
-    DEVICE_PROFILES, ECGPreprocessor, PPGPreprocessor,
+    DEVICE_PROFILES, ECGPreprocessor,
 )
 
-# ── App lifecycle ─────────────────────────────────────────────────────────────
+# ── Startup ───────────────────────────────────────────────────────────────────
 
 engine: Optional[UniversalSeverityEngine] = None
 
@@ -52,7 +52,7 @@ class DemoRequest(BaseModel):
     scenario: str = "Normal"
     device:   str = "generic_wearable"
 
-# ── Synthetic generators ──────────────────────────────────────────────────────
+# ── Synthetic signal generators ───────────────────────────────────────────────
 
 def _gen_ecg(rhythm: str = "Normal") -> np.ndarray:
     t   = np.linspace(0, WINDOW_SEC, ECG_LEN)
@@ -100,35 +100,61 @@ def _gen_ppg(hr=75, spo2=97.0, stress="Low") -> np.ndarray:
     return ppg.astype(np.float32)
 
 
-# ── PTB-XL helpers ────────────────────────────────────────────────────────────
+# ── WFDB parser (no wfdb library needed for .dat + .hea) ─────────────────────
 
-def _load_ptbxl_npy(data: bytes, lead_idx: int = 1) -> np.ndarray:
+def _parse_wfdb(dat_bytes: bytes, hea_bytes: bytes, lead_name: str = "II") -> tuple:
     """
-    Load a PTB-XL .npy file (shape: [N_samples, 12] at 500 Hz or 100 Hz).
-    Extracts lead II (index 1) and resamples to 256 Hz over 30s window.
+    Parse PTB-XL WFDB format (.dat + .hea) without the wfdb library.
+    Returns (signal_array, sample_rate, lead_names)
     """
-    arr = np.load(io.BytesIO(data))           # (N, 12) or (N,)
-    if arr.ndim == 2:
-        arr = arr[:, lead_idx]                # extract one lead
-    arr = arr.astype(np.float32)
+    # Parse header
+    lines = hea_bytes.decode("utf-8", errors="ignore").strip().splitlines()
+    header = lines[0].split()
+    n_leads   = int(header[1])
+    fs        = int(header[2])
+    n_samples = int(header[3])
 
-    # Detect source sample rate from length
-    # PTB-XL standard: 5000 samples @ 500Hz OR 1000 samples @ 100Hz
-    if len(arr) >= 5000:
-        src_fs = 500
-    elif len(arr) >= 900:
-        src_fs = 100
-    else:
-        src_fs = 256                          # already correct rate, assume
+    lead_names = []
+    gains      = []
+    baselines  = []
 
-    return arr, src_fs
+    for line in lines[1:n_leads+1]:
+        parts = line.split()
+        if len(parts) < 9:
+            continue
+        # gain field like "1000.0(0)/mV" → extract number before (
+        gain_str = parts[2].split("(")[0]
+        try:
+            gain = float(gain_str)
+        except ValueError:
+            gain = 1000.0
+        baseline = int(parts[4]) if len(parts) > 4 else 0
+        lead_names.append(parts[-1])
+        gains.append(gain)
+        baselines.append(baseline)
+
+    # Parse 16-bit little-endian .dat
+    n_vals = n_samples * n_leads
+    raw    = struct.unpack(f"<{n_vals}h", dat_bytes[:n_vals * 2])
+    data   = np.array(raw, dtype=np.float32).reshape(n_samples, n_leads)
+
+    # Convert ADC units → mV
+    for i in range(n_leads):
+        data[:, i] = (data[:, i] - baselines[i]) / gains[i]
+
+    # Select requested lead
+    lead_upper = lead_name.upper()
+    lead_map   = {n.upper(): i for i, n in enumerate(lead_names)}
+    idx        = lead_map.get(lead_upper, 1)   # default Lead II
+
+    return data[:, idx].astype(np.float32), fs, lead_names
 
 
 def _ptbxl_label_to_scenario(label: str) -> str:
     label = label.upper()
-    if "AFIB" in label or "AF" in label:     return "AFib"
-    if "BRAD" in label:                       return "Bradycardia"
-    if "TACH" in label:                       return "Tachycardia"
+    if any(x in label for x in ["AFIB", "AF,", " AF", "ATRIAL FIB"]): return "AFib"
+    if "BRAD" in label: return "Bradycardia"
+    if "TACH" in label: return "Tachycardia"
     return "Normal"
 
 
@@ -149,14 +175,12 @@ def health():
 
 @app.post("/triage")
 def triage(req: TriageRequest):
-    """Run triage on raw ECG/PPG arrays."""
     if req.ecg is None and req.ppg is None:
         raise HTTPException(400, "Provide at least one of 'ecg' or 'ppg'.")
     try:
         adapter = UniversalInputAdapter(req.device)
     except ValueError as e:
         raise HTTPException(400, str(e))
-
     ecg_raw = np.array(req.ecg, dtype=np.float32) if req.ecg else None
     ppg_raw = np.array(req.ppg, dtype=np.float32) if req.ppg else None
     adapted = adapter.adapt(ecg_raw=ecg_raw, ppg_raw=ppg_raw)
@@ -167,7 +191,6 @@ def triage(req: TriageRequest):
 
 @app.post("/triage/demo")
 def triage_demo(req: DemoRequest):
-    """Run triage on synthetic signal for a named scenario."""
     valid = ["Normal", "AFib", "Bradycardia", "Tachycardia", "Anomaly"]
     if req.scenario not in valid:
         raise HTTPException(400, f"scenario must be one of {valid}")
@@ -184,83 +207,78 @@ def triage_demo(req: DemoRequest):
     adapted = adapter.adapt(ecg_raw=ecg_raw, ppg_raw=ppg_raw)
     result  = engine.evaluate(adapted)
 
-    # Return the ECG signal for real-time display (downsample to 512 pts for bandwidth)
     ecg_display = adapted["ecg"][::ECG_LEN // 512].tolist()
+    ppg_display = adapted["ppg"][::PPG_LEN // 256].tolist()
 
     return {
         **result.to_dict(),
-        "quality_flags":  adapted["quality_flags"],
-        "demo_scenario":  req.scenario,
-        "ecg_display":    ecg_display,      # 512 points for waveform rendering
-        "ppg_display":    adapted["ppg"][::PPG_LEN // 256].tolist(),
+        "quality_flags": adapted["quality_flags"],
+        "demo_scenario": req.scenario,
+        "ecg_display":   ecg_display,
+        "ppg_display":   ppg_display,
     }
 
 
-@app.post("/triage/ptbxl")
-async def triage_ptbxl(
-    file:      UploadFile = File(..., description="PTB-XL .npy record file"),
-    label:     str        = Form("Normal", description="Rhythm label from PTB-XL metadata"),
-    lead_idx:  int        = Form(1,        description="Which ECG lead to use (0-11), default=1 (Lead II)"),
+@app.post("/triage/wfdb")
+async def triage_wfdb(
+    dat_file:  UploadFile = File(..., description="PTB-XL .dat binary file"),
+    hea_file:  UploadFile = File(..., description="PTB-XL .hea header file"),
+    label:     str        = Form("Normal", description="Rhythm label from PTB-XL metadata CSV"),
+    lead:      str        = Form("II",     description="Lead name: I, II, III, AVR, AVL, AVF, V1-V6"),
     device:    str        = Form("generic_wearable"),
 ):
     """
-    Upload a PTB-XL .npy file and run triage.
-
-    PTB-XL records are stored as .npy files with shape (N_samples, 12).
-    Download PTB-XL from: https://physionet.org/content/ptb-xl/1.0.3/
-    Each record file is named like records500/00000/00001_hr.npy
+    Upload a PTB-XL WFDB record pair (.dat + .hea) and run triage.
+    Files come from PTB-XL records500/ or records100/ folders.
+    Example pair: 01000_hr.dat + 01000_hr.hea
     """
-    if not file.filename.endswith(".npy"):
-        raise HTTPException(400, "File must be a .npy file from PTB-XL dataset.")
+    if not dat_file.filename.endswith(".dat"):
+        raise HTTPException(400, "dat_file must be a .dat file")
+    if not hea_file.filename.endswith(".hea"):
+        raise HTTPException(400, "hea_file must be a .hea file")
 
-    raw_bytes = await file.read()
+    dat_bytes = await dat_file.read()
+    hea_bytes = await hea_file.read()
+
     try:
-        ecg_raw, src_fs = _load_ptbxl_npy(raw_bytes, lead_idx=lead_idx)
+        ecg_raw, src_fs, lead_names = _parse_wfdb(dat_bytes, hea_bytes, lead_name=lead)
     except Exception as e:
-        raise HTTPException(422, f"Could not parse .npy file: {e}")
+        raise HTTPException(422, f"Could not parse WFDB files: {e}")
 
-    # Use kardia_mobile profile with detected fs override
     try:
         adapter = UniversalInputAdapter(device)
-        # Patch the source fs so resampling is correct
         adapter.profile = {**adapter.profile, "ecg_fs": src_fs, "has_ecg": True}
     except ValueError as e:
         raise HTTPException(400, str(e))
 
     adapted = adapter.adapt(ecg_raw=ecg_raw, ppg_raw=None)
     result  = engine.evaluate(adapted)
-
     ecg_display = adapted["ecg"][::ECG_LEN // 512].tolist()
-    scenario    = _ptbxl_label_to_scenario(label)
 
     return {
         **result.to_dict(),
-        "quality_flags":  adapted["quality_flags"],
-        "ptbxl_label":    label,
-        "ptbxl_scenario": scenario,
-        "source_fs":      src_fs,
-        "lead_used":      lead_idx,
-        "ecg_display":    ecg_display,
+        "quality_flags": adapted["quality_flags"],
+        "ptbxl_label":   label,
+        "lead_used":     lead,
+        "all_leads":     lead_names,
+        "source_fs":     src_fs,
+        "ecg_display":   ecg_display,
     }
 
 
 @app.get("/triage/stream")
 async def triage_stream(scenario: str = "Normal", device: str = "generic_wearable"):
-    """
-    Server-Sent Events stream — sends a triage result every 4 seconds.
-    Connect from JS: const evtSource = new EventSource('/triage/stream?scenario=AFib')
-    """
+    """Server-Sent Events — pushes a new triage result every 4 seconds."""
     valid = ["Normal", "AFib", "Bradycardia", "Tachycardia", "Anomaly"]
     if scenario not in valid:
         raise HTTPException(400, f"scenario must be one of {valid}")
 
     import asyncio
-
     hr_map    = {"Normal":75,"AFib":105,"Bradycardia":38,"Tachycardia":145,"Anomaly":80}
     spo2_map  = {"Normal":97,"AFib":94,"Bradycardia":88,"Tachycardia":96,"Anomaly":92}
     stress_map= {"Normal":"Low","AFib":"High","Bradycardia":"Medium","Tachycardia":"High","Anomaly":"Medium"}
 
-    async def event_gen():
+    async def gen():
         while True:
             hr, spo2, stress = hr_map[scenario], spo2_map[scenario], stress_map[scenario]
             ecg_raw = _gen_ecg(scenario)
@@ -275,5 +293,5 @@ async def triage_stream(scenario: str = "Normal", device: str = "generic_wearabl
             yield f"data: {json.dumps(payload)}\n\n"
             await asyncio.sleep(4)
 
-    return StreamingResponse(event_gen(), media_type="text/event-stream",
+    return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
