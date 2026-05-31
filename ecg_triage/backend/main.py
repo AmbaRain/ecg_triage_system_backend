@@ -295,3 +295,103 @@ async def triage_stream(scenario: str = "Normal", device: str = "generic_wearabl
 
     return StreamingResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/triage/csv")
+async def triage_csv(
+    file:       UploadFile = File(..., description="CSV file with ECG signal"),
+    ecg_col:    str        = Form("ecg_value",  description="Column name containing ECG values"),
+    time_col:   str        = Form("time",        description="Column name containing time (seconds). Leave blank if none."),
+    delimiter:  str        = Form("auto",        description="Column delimiter: auto, comma, semicolon, tab"),
+    src_fs:     float      = Form(0,             description="Source sample rate Hz. 0 = auto-detect from time column."),
+    label:      str        = Form("Normal",      description="Rhythm label"),
+    device:     str        = Form("generic_wearable"),
+):
+    """
+    Upload any CSV file with a single ECG column and run triage.
+    Supports comma, semicolon, or tab delimiters.
+    Sample rate is auto-detected from the time column or can be specified manually.
+    Works with files like: ecg_1d_timeseries_prediction.csv (time;ecg_value @ 1000Hz)
+    """
+    raw = await file.read()
+    text = raw.decode("utf-8", errors="ignore")
+
+    # Auto-detect delimiter
+    if delimiter == "auto":
+        first_line = text.split("\n")[0]
+        if ";" in first_line:   sep = ";"
+        elif "\t" in first_line: sep = "\t"
+        else:                    sep = ","
+    else:
+        sep = {"comma": ",", "semicolon": ";", "tab": "\t"}.get(delimiter, ",")
+
+    # Parse CSV
+    import io as _io, csv as _csv
+    reader = _csv.DictReader(_io.StringIO(text), delimiter=sep)
+    rows   = [r for r in reader]
+
+    if not rows:
+        raise HTTPException(422, "CSV file is empty or could not be parsed.")
+
+    # Find ECG column (case-insensitive fallback)
+    headers    = list(rows[0].keys())
+    ecg_col_actual = ecg_col
+    if ecg_col not in headers:
+        match = next((h for h in headers if ecg_col.lower() in h.lower()), None)
+        if not match:
+            # try common names
+            for candidate in ["ecg", "signal", "value", "ecg_value", "amplitude", "mv", "voltage"]:
+                match = next((h for h in headers if candidate in h.lower()), None)
+                if match: break
+        if not match:
+            raise HTTPException(422, f"ECG column '{ecg_col}' not found. Available: {headers}")
+        ecg_col_actual = match
+
+    try:
+        ecg_vals = np.array([float(r[ecg_col_actual]) for r in rows], dtype=np.float32)
+    except (ValueError, KeyError) as e:
+        raise HTTPException(422, f"Could not parse ECG values: {e}")
+
+    # Detect sample rate
+    detected_fs = float(src_fs)
+    if detected_fs <= 0:
+        time_col_actual = time_col if time_col in headers else None
+        if not time_col_actual:
+            time_col_actual = next((h for h in headers if "time" in h.lower() or "t" == h.lower()), None)
+
+        if time_col_actual and len(rows) > 1:
+            try:
+                t0 = float(rows[0][time_col_actual])
+                t1 = float(rows[1][time_col_actual])
+                detected_fs = round(1.0 / (t1 - t0))
+            except (ValueError, ZeroDivisionError):
+                detected_fs = 256.0
+        else:
+            detected_fs = 256.0
+
+    duration = len(ecg_vals) / detected_fs
+
+    # Remove DC offset (mean subtraction)
+    ecg_vals = ecg_vals - ecg_vals.mean()
+
+    # Adapt and run
+    try:
+        adapter = UniversalInputAdapter(device)
+        adapter.profile = {**adapter.profile, "ecg_fs": int(detected_fs), "has_ecg": True}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    adapted     = adapter.adapt(ecg_raw=ecg_vals, ppg_raw=None)
+    result      = engine.evaluate(adapted)
+    ecg_display = adapted["ecg"][::ECG_LEN // 512].tolist()
+
+    return {
+        **result.to_dict(),
+        "quality_flags":  adapted["quality_flags"],
+        "csv_label":      label,
+        "ecg_col_used":   ecg_col_actual,
+        "detected_fs":    detected_fs,
+        "duration_sec":   round(duration, 2),
+        "n_samples":      len(ecg_vals),
+        "ecg_display":    ecg_display,
+    }
