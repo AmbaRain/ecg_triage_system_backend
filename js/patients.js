@@ -177,6 +177,11 @@ async function loadPatients() {
     _totalPatients = total;
     setState('patientList', patients);
 
+    const countLabel = document.getElementById('patients-count-label');
+    if (countLabel) {
+      countLabel.textContent = `${total} patient${total !== 1 ? 's' : ''} registered`;
+    }
+
     renderRows(patients);
     renderPagination(total, page, limit ?? CONFIG.PATIENTS_PER_PAGE);
 

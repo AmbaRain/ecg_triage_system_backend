@@ -137,6 +137,7 @@ html {
   font-size: 16px;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -148,6 +149,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 a {
@@ -249,6 +251,7 @@ p:last-child { margin-bottom: 0; }
   grid-column: 2;
   grid-row: 2;
   overflow-y: auto;
+  min-height: 0;
   padding: var(--space-8);
 }
 
@@ -3084,8 +3087,60 @@ body.dragging .drop-zone { pointer-events: all; }
   .modal { padding: var(--space-5); }
   .modal-box { padding: var(--space-5); }
 
-  /* ── Alert cards: tighten ── */
-  .alert-card { padding: var(--space-3) var(--space-4); }
+  /* ── Alerts page ── */
+
+  /* Header: title left, unreviewed badge below */
+  .alerts-page__header {
+    align-items: flex-start;
+  }
+  .alerts-page__title {
+    font-size: 1.375rem;
+  }
+
+  /* Filter pills: smaller, allow full wrapping */
+  .alerts-filter-bar {
+    gap: var(--space-2);
+  }
+  .filter-btn {
+    padding: 5px 12px;
+    font-size: 0.75rem;
+  }
+
+  /* Alert card: stack vertically — icon+body on top, actions full-width below */
+  .alert-card {
+    flex-wrap: wrap;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+  .alert-card__body {
+    /* let body sit next to icon, then actions wrap below */
+    min-width: 0;
+  }
+  .alert-card__actions {
+    /* full width row of buttons below the body */
+    width: 100%;
+    margin-left: 0;
+    display: flex;
+    gap: var(--space-2);
+  }
+  .alert-card__actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Tighten alert title and meta text */
+  .alert-card__title { font-size: 0.875rem; }
+  .alert-card__patient { font-size: 0.75rem; margin-bottom: var(--space-2); }
+  .alert-time { font-size: 0.6875rem; }
+
+  /* Empty state: centre on mobile */
+  .empty-state {
+    text-align: center;
+    padding: var(--space-8) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
 
   /* ── CTA card on dashboard: stack ── */
   .cta-card { flex-direction: column; align-items: flex-start; }
