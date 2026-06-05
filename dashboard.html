@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ECG Triage dashboard — summary statistics, recent predictions, and quick upload.">
+  <title>Dashboard — ECG Triage</title>
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* ── Dashboard-specific styles ── */
+
+    /* Recent predictions table action link */
+    .action-link {
+      font-family: var(--font-base);
+      font-size: 0.8125rem;
+      color: var(--color-info);
+      text-decoration: none;
+      transition: color var(--transition-fast);
+    }
+    .action-link:hover { color: var(--color-info-hover); }
+
+    /* Quick upload CTA card */
+    .cta-card {
+      background:
+        radial-gradient(ellipse 80% 70% at 110% 50%, rgba(46,160,67,0.12) 0%, transparent 70%),
+        var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-8);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-6);
+      margin-top: var(--space-6);
+    }
+    .cta-card__text h2 { margin-bottom: var(--space-2); }
+    .cta-card__text p  { color: var(--color-text-secondary); margin: 0; }
+
+    /* Sparkline SVG (heart rate history analog from vitals screen) */
+    .sparkline-wrapper {
+      width: 120px;
+      height: 40px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+
+    /* Patient row link */
+    .patient-link { color: inherit; text-decoration: none; display: contents; }
+  </style>
+</head>
+<body>
+
+<!-- ── Route guard (first script executed) ────────────────────────────────── -->
+<script type="module">
+  import { requireAuth } from './js/auth.js';
+  requireAuth();
+</script>
+
+<div class="app-shell" id="app-shell">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <div id="nav-container"></div>
+
+  <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
+  <header class="topbar" role="banner">
+    <div class="topbar__search">
+      <div class="search-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          class="form-input"
+          type="search"
+          id="global-search"
+          placeholder="Search patients…"
+          aria-label="Search patients"
+          style="padding-left:40px"
+        >
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <div class="topbar__user" id="topbar-user">
+        <div class="avatar" id="topbar-avatar" aria-hidden="true">?</div>
+        <span id="topbar-username"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main content ──────────────────────────────────────────────────────── -->
+  <main class="content-area" id="main-content" aria-label="Dashboard">
+    <div class="content-inner">
+
+      <!-- Page header -->
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <span id="dashboard-date" class="label-mono"></span>
+      </div>
+
+      <!-- ── Stats row (mirrors vitals screen stat cards) ────────────────── -->
+      <div class="stat-grid" id="stats-grid" aria-label="Summary statistics">
+
+        <div class="stat-card" role="figure" aria-label="Total patients">
+          <div class="stat-card__label">Total Patients</div>
+          <div class="stat-card__value" id="stat-total-patients">—</div>
+          <div class="stat-card__meta">Registered in system</div>
+          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </div>
+
+        <div class="stat-card" role="figure" aria-label="Predictions today">
+          <div class="stat-card__label">Predictions Today</div>
+          <div class="stat-card__value" id="stat-predictions">—</div>
+          <div class="stat-card__meta">ECG analyses run</div>
+          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <polyline points="2 12 6 12 8 4 10 20 12 12 14 16 16 12 22 12"/>
+          </svg>
+        </div>
+
+        <div class="stat-card" role="figure" aria-label="Upload formats supported">
+          <div class="stat-card__label">Upload Formats</div>
+          <div class="stat-card__value">2</div>
+          <div class="stat-card__meta">CSV &amp; WFDB (DAT+HEA)</div>
+          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+
+        <div class="stat-card" role="figure" aria-label="ECG leads analysed">
+          <div class="stat-card__label">ECG Leads</div>
+          <div class="stat-card__value">12</div>
+          <div class="stat-card__meta">Standard 12-lead model</div>
+          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </div>
+
+      </div>
+      <!-- ── End stats row ─────────────────────────────────────────────── -->
+
+      <!-- ── Recent patients table (mirrors vitals Live Patient Overview) ── -->
+      <div class="card" style="padding:0;overflow:hidden" aria-label="Recent patients">
+        <div class="card__header" style="padding: var(--space-5) var(--space-6)">
+          <span class="card__title">Recent Patients</span>
+          <a href="/patients.html" class="action-link">View all →</a>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div id="patients-loading" style="padding: var(--space-6); text-align:center; color: var(--color-text-secondary); font-size:0.875rem">
+          <div class="ecg-pulse" style="justify-content:center;margin-bottom:var(--space-3)" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          Loading patients…
+        </div>
+
+        <div id="patients-table-wrap" style="display:none">
+          <table class="data-table" id="patients-table">
+            <thead>
+              <tr>
+                <th scope="col">Patient</th>
+                <th scope="col">ID</th>
+                <th scope="col">Date of Birth</th>
+                <th scope="col">Last Prediction</th>
+                <th scope="col">Predictions</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody id="patients-tbody"></tbody>
+          </table>
+
+          <div class="pagination" style="justify-content:flex-end">
+            <a href="/patients.html" class="action-link">See full patient list →</a>
+          </div>
+        </div>
+      </div>
+      <!-- ── End patients table ───────────────────────────────────────── -->
+
+      <!-- ── Quick-upload CTA (bottom of page) ───────────────────────── -->
+      <div class="cta-card" aria-label="Quick upload call to action">
+        <div class="cta-card__text">
+          <h2>Run an ECG analysis</h2>
+          <p>Upload a CSV or WFDB file to receive an immediate AI diagnosis with full waveform visualisation.</p>
+        </div>
+        <!-- Mini ECG sparkline — visual nod to vitals screen waveform -->
+        <svg class="sparkline-wrapper" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+          <polyline
+            points="0,20 10,20 14,8 16,32 18,20 28,20 32,18 40,2 42,38 44,20 54,20 58,22 66,8 68,20 78,20 82,18 90,2 92,38 94,20 104,20 108,22 116,10 120,20"
+            fill="none" stroke="var(--color-accent)" stroke-width="1.5"
+            stroke-linejoin="round" stroke-linecap="round"
+          />
+        </svg>
+        <a href="/upload.html" class="btn btn--primary btn--lg" id="btn-quick-upload">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Upload ECG
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+</div><!-- end .app-shell -->
+
+<script type="module">
+import { injectNav }       from './js/components/nav.js';
+import { showToast }       from './js/components/toast.js';
+import { getCurrentUser }  from './js/auth.js';
+import { API }             from './js/api-adapter.js';
+import { navigateTo }      from './js/router.js';
+
+// ── Inject navigation ──────────────────────────────────────────────────────
+await injectNav(document.getElementById('nav-container'));
+
+// ── Populate topbar with current user ─────────────────────────────────────
+const user = getCurrentUser();
+if (user) {
+  const initial = (user.full_name || user.username || '?')[0].toUpperCase();
+  document.getElementById('topbar-avatar').textContent   = initial;
+  document.getElementById('topbar-username').textContent = user.full_name || user.username;
+}
+
+// ── Date label ────────────────────────────────────────────────────────────
+document.getElementById('dashboard-date').textContent =
+  new Date().toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+// ── Load stats & patient list from mock API ────────────────────────────────
+(async () => {
+  try {
+    const { patients, total } = await API.getPatients({ page: 1, limit: 6 });
+
+    // Stats
+    document.getElementById('stat-total-patients').textContent = total;
+    document.getElementById('stat-predictions').textContent    = patients.reduce((s, p) => s + p.prediction_count, 0);
+
+    // Build patient rows
+    const tbody = document.getElementById('patients-tbody');
+    patients.forEach(p => {
+      const lastDate = p.last_prediction_date
+        ? new Date(p.last_prediction_date).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+      const dob = p.date_of_birth
+        ? new Date(p.date_of_birth).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+        : '—';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight:500">${p.full_name}</td>
+        <td><span class="label-mono">${p.patient_id}</span></td>
+        <td class="text-secondary text-sm">${dob}</td>
+        <td class="text-secondary text-sm">${lastDate}</td>
+        <td>
+          <span class="badge badge--neutral">${p.prediction_count}</span>
+        </td>
+        <td style="text-align:right">
+          <a href="/patient.html?patient_id=${p.patient_id}" class="action-link">View →</a>
+        </td>
+      `;
+      // Row click → patient record
+      tr.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'A') {
+          navigateTo('/patient.html', { patient_id: p.patient_id });
+        }
+      });
+      tbody.appendChild(tr);
+    });
+
+    // Swap skeleton → table
+    document.getElementById('patients-loading').style.display  = 'none';
+    document.getElementById('patients-table-wrap').style.display = '';
+
+  } catch (err) {
+    document.getElementById('patients-loading').innerHTML =
+      `<span style="color:var(--color-danger)">Failed to load patient list.</span>`;
+    showToast(err?.message || 'Failed to load dashboard data.', 'error');
+  }
+})();
+
+// ── Global error handler ───────────────────────────────────────────────────
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason?.status === 401) { window.location.href = '/login.html'; return; }
+  showToast(e.reason?.message || 'An unexpected error occurred.', 'error');
+});
+
+// ── Global search → patients page ─────────────────────────────────────────
+document.getElementById('global-search').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    navigateTo('/patients.html', { search: e.target.value.trim() });
+  }
+});
+</script>
+
+</body>
+</html>

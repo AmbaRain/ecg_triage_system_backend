@@ -1,0 +1,661 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Menu, Bell, Settings, LogOut, Plus, Search, Filter, Download, Play, Pause, Square, TrendingUp, Eye, EyeOff } from 'lucide-react';
+
+export default function WeCareApp() {
+  const [currentPage, setCurrentPage] = useState('login');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const canvasRef = useRef(null);
+
+  // Animate ECG waveform
+  useEffect(() => {
+    if (currentPage === 'vitals' && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      let animationId;
+      let offset = 0;
+
+      const draw = () => {
+        const width = canvas.width;
+        const height = canvas.height;
+        const centerY = height / 2;
+
+        // Clear canvas with gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, 'rgba(5, 20, 45, 1)');
+        gradient.addColorStop(1, 'rgba(10, 30, 60, 1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw grid
+        ctx.strokeStyle = 'rgba(0, 150, 180, 0.15)';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < width; i += 20) {
+          ctx.beginPath();
+          ctx.moveTo(i, 0);
+          ctx.lineTo(i, height);
+          ctx.stroke();
+        }
+        for (let i = 0; i < height; i += 20) {
+          ctx.beginPath();
+          ctx.moveTo(0, i);
+          ctx.lineTo(width, i);
+          ctx.stroke();
+        }
+
+        // Draw ECG waveform
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(0, 212, 255, 0.6)';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+
+        for (let x = 0; x < width; x += 2) {
+          const normalizedX = (x + offset) / 40;
+          let y;
+
+          // Realistic ECG pattern
+          const cycle = normalizedX % 4;
+          if (cycle < 0.1) y = Math.sin(cycle * Math.PI * 40) * 20;
+          else if (cycle < 0.3) y = Math.sin((cycle - 0.1) * Math.PI * 10) * 40;
+          else if (cycle < 0.5) y = 0;
+          else if (cycle < 1.2) y = Math.sin((cycle - 0.5) * Math.PI * 3) * 60;
+          else if (cycle < 1.6) y = Math.sin((cycle - 1.2) * Math.PI * 5) * 30;
+          else y = 0;
+
+          if (x === 0) ctx.moveTo(0, centerY - y);
+          else ctx.lineTo(x, centerY - y);
+        }
+        ctx.stroke();
+
+        // Draw pulsing glow
+        ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+        ctx.lineWidth = 6;
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath();
+        for (let x = 0; x < width; x += 2) {
+          const normalizedX = (x + offset) / 40;
+          let y;
+          const cycle = normalizedX % 4;
+          if (cycle < 0.1) y = Math.sin(cycle * Math.PI * 40) * 20;
+          else if (cycle < 0.3) y = Math.sin((cycle - 0.1) * Math.PI * 10) * 40;
+          else if (cycle < 0.5) y = 0;
+          else if (cycle < 1.2) y = Math.sin((cycle - 0.5) * Math.PI * 3) * 60;
+          else if (cycle < 1.6) y = Math.sin((cycle - 1.2) * Math.PI * 5) * 30;
+          else y = 0;
+          if (x === 0) ctx.moveTo(0, centerY - y);
+          else ctx.lineTo(x, centerY - y);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        offset = (offset + 3) % 160;
+        animationId = requestAnimationFrame(draw);
+      };
+
+      draw();
+      return () => cancelAnimationFrame(animationId);
+    }
+  }, [currentPage]);
+
+  // Login Screen
+  const LoginScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex items-center justify-center p-4">
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        {/* Left - Hero Section */}
+        <div className="hidden lg:flex flex-col justify-center">
+          <div className="mb-8">
+            <div className="inline-flex items-center gap-2 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-lg">❤️</span>
+              </div>
+              <div>
+                <div className="font-bold text-xl text-gray-900">WeCare</div>
+                <div className="text-xs text-gray-600">Wireless Emergency Telemedicine</div>
+              </div>
+            </div>
+          </div>
+          <h1 className="text-5xl font-bold text-gray-900 mb-4 leading-tight">Stay Connected.<br/>Save Lives.</h1>
+          <p className="text-lg text-gray-600 mb-8">Real-time patient monitoring and emergency telemedicine at your fingertips. Premium healthcare for modern hospitals.</p>
+          <div className="relative h-64 mb-8">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl opacity-50"></div>
+            <svg className="w-full h-full relative z-10" viewBox="0 0 400 200">
+              <path d="M0,100 L20,100 L40,80 L60,120 L80,100 L100,100 L120,90 L140,110 L160,100 L180,100 L200,70 L220,130 L240,100 L260,100 L280,95 L300,105 L320,100 L340,100 L360,85 L380,115 L400,100" stroke="url(#gradient)" strokeWidth="3" fill="none"/>
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%">
+                  <stop offset="0%" stopColor="#3b82f6"/>
+                  <stop offset="100%" stopColor="#06b6d4"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <img src="https://images.unsplash.com/photo-1631217314830-7d6f64625155?w=500&h=300&fit=crop" alt="Medical team" className="rounded-2xl shadow-xl" />
+        </div>
+
+        {/* Right - Login Form */}
+        <div className="backdrop-blur-xl bg-white/80 rounded-3xl p-8 shadow-2xl border border-white/20">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
+            <p className="text-gray-600">Sign in to your healthcare dashboard</p>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+              <input type="text" placeholder="Enter your username" className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition bg-white/50 backdrop-blur-sm" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <div className="relative">
+                <input type={showPassword ? "text" : "password"} placeholder="••••••••" className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition bg-white/50 backdrop-blur-sm" />
+                <button onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3 text-gray-500 hover:text-blue-500 transition">
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded border-2 border-gray-300 text-blue-500 cursor-pointer" />
+                <span className="text-sm text-gray-600">Remember me</span>
+              </label>
+              <a href="#" className="text-sm text-blue-500 hover:text-blue-600 font-medium">Forgot password?</a>
+            </div>
+
+            <button onClick={() => setCurrentPage('dashboard')} className="w-full py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300 transform hover:scale-105">
+              Sign In
+            </button>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+              <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">or</span></div>
+            </div>
+
+            <p className="text-center text-gray-600">Don't have an account? <a href="#" className="text-blue-500 font-semibold hover:text-blue-600">Register here</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Dashboard Screen
+  const DashboardScreen = () => (
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-blue-600 to-blue-700 text-white transition-all duration-300 shadow-xl overflow-y-auto`}>
+        <div className="p-6 flex items-center justify-between">
+          {sidebarOpen && <div className="flex items-center gap-2"><span className="text-2xl">❤️</span><span className="font-bold">WeCare</span></div>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hover:bg-blue-500/30 p-2 rounded-lg transition">
+            <Menu size={20} />
+          </button>
+        </div>
+
+        <nav className="space-y-2 px-3">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'patients', label: 'Patients', icon: '👥' },
+            { id: 'vitals', label: 'Vitals Monitor', icon: '❤️' },
+            { id: 'alerts', label: 'Alerts', icon: '🚨' },
+            { id: 'reports', label: 'Reports', icon: '📋' },
+            { id: 'settings', label: 'Settings', icon: '⚙️' }
+          ].map(item => (
+            <button key={item.id} onClick={() => setCurrentPage(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${currentPage === item.id ? 'bg-white/20 backdrop-blur-sm' : 'hover:bg-white/10'}`}>
+              <span className="text-xl">{item.icon}</span>
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Navbar */}
+        <div className="bg-white/60 backdrop-blur-xl border-b border-white/20 px-8 py-4 flex items-center justify-between shadow-sm">
+          <div className="flex-1 max-w-xl">
+            <div className="relative">
+              <Search size={20} className="absolute left-3 top-3 text-gray-400" />
+              <input type="text" placeholder="Search patients..." className="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none transition bg-white/50" />
+            </div>
+          </div>
+          <div className="flex items-center gap-4 ml-6">
+            <button className="relative p-2 hover:bg-gray-100 rounded-xl transition">
+              <Bell size={20} className="text-gray-700" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-white font-bold cursor-pointer">D</div>
+          </div>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-8 space-y-8">
+            <div className="flex items-center justify-between">
+              <h1 className="text-4xl font-bold text-gray-900">Dashboard</h1>
+              <button onClick={() => setCurrentPage('login')} className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-xl transition">
+                Logout
+              </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Patients', value: '120', change: '+12% from last month', icon: '👥', color: 'from-blue-500 to-blue-600' },
+                { label: 'Active Monitoring', value: '32', change: 'Live now', icon: '❤️', color: 'from-green-500 to-emerald-600' },
+                { label: 'Critical Alerts', value: '5', change: 'Require attention', icon: '⚠️', color: 'from-red-500 to-orange-600' },
+                { label: 'Reports', value: '18', change: 'Generated today', icon: '📋', color: 'from-purple-500 to-pink-600' }
+              ].map((stat, idx) => (
+                <div key={idx} className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-6 shadow-lg hover:shadow-xl transition group cursor-pointer">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-3xl">{stat.icon}</span>
+                    <span className={`px-3 py-1 bg-gradient-to-r ${stat.color} text-white text-xs font-bold rounded-full`}>{stat.change}</span>
+                  </div>
+                  <h3 className="text-gray-600 text-sm font-medium mb-1">{stat.label}</h3>
+                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Live Patient Overview */}
+            <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Live Patient Overview</h2>
+                <button className="text-blue-500 font-semibold hover:text-blue-600">View All →</button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-gray-600 text-xs font-semibold uppercase tracking-wider border-b border-gray-200/50">
+                    <tr>
+                      <th className="text-left py-3 px-4">Patient</th>
+                      <th className="text-left py-3 px-4">Status</th>
+                      <th className="text-left py-3 px-4">Heart Rate</th>
+                      <th className="text-left py-3 px-4">SpO₂</th>
+                      <th className="text-left py-3 px-4">Last Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { name: 'Osama Elnaha', status: 'Live', hr: '60', spo2: '95%', time: '2 min ago' },
+                      { name: 'Sarah Ahmed', status: 'Live', hr: '72', spo2: '98%', time: '1 min ago' },
+                      { name: 'Mohamed Ali', status: 'Live', hr: '68', spo2: '96%', time: '3 min ago' },
+                      { name: 'Noura Hassan', status: 'Alert', hr: '112', spo2: '92%', time: 'Just now' }
+                    ].map((patient, idx) => (
+                      <tr key={idx} className="border-b border-gray-100/50 hover:bg-white/30 transition cursor-pointer" onClick={() => setCurrentPage('patient-details')}>
+                        <td className="py-4 px-4 flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400"></div>
+                          <span className="font-medium text-gray-900">{patient.name}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${patient.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            ● {patient.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-gray-700">{patient.hr} bpm</td>
+                        <td className="py-4 px-4 text-gray-700">{patient.spo2}</td>
+                        <td className="py-4 px-4 text-gray-500 text-xs">{patient.time}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Hero Section */}
+            <div className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/30 rounded-2xl p-8 shadow-lg overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full opacity-20 blur-3xl"></div>
+              <div className="relative z-10">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Stay Connected. Save Lives.</h3>
+                <p className="text-gray-600 mb-4">Real-time monitoring and telemedicine at your fingertips</p>
+                <button className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition">
+                  Learn More
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Patient Details Screen
+  const PatientDetailsScreen = () => (
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-blue-600 to-blue-700 text-white transition-all duration-300 shadow-xl`}>
+        <div className="p-6 flex items-center justify-between">
+          {sidebarOpen && <div className="flex items-center gap-2"><span className="text-2xl">❤️</span><span className="font-bold">WeCare</span></div>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hover:bg-blue-500/30 p-2 rounded-lg transition"><Menu size={20} /></button>
+        </div>
+        <nav className="space-y-2 px-3">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'patients', label: 'Patients', icon: '👥' },
+            { id: 'vitals', label: 'Vitals Monitor', icon: '❤️' },
+            { id: 'alerts', label: 'Alerts', icon: '🚨' },
+            { id: 'reports', label: 'Reports', icon: '📋' },
+            { id: 'settings', label: 'Settings', icon: '⚙️' }
+          ].map(item => (
+            <button key={item.id} onClick={() => setCurrentPage(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${currentPage === item.id ? 'bg-white/20 backdrop-blur-sm' : 'hover:bg-white/10'}`}>
+              <span className="text-xl">{item.icon}</span>
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white/60 backdrop-blur-xl border-b border-white/20 px-8 py-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setCurrentPage('dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-semibold transition">← Back</button>
+            <h1 className="text-2xl font-bold text-gray-900">Patient Details</h1>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left - Patient Info */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Patient Card */}
+              <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-8 shadow-lg">
+                <div className="flex items-start gap-6 mb-8">
+                  <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop" alt="Patient" className="w-32 h-32 rounded-2xl object-cover shadow-lg" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h2 className="text-3xl font-bold text-gray-900">Osama Elnaha</h2>
+                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">● Live Monitoring</span>
+                    </div>
+                    <p className="text-gray-600 mb-4">ID: 089625/00133</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-sm"><p className="text-gray-500 text-xs font-semibold">Age</p><p className="text-lg font-bold text-gray-900">45</p></div>
+                      <div className="text-sm"><p className="text-gray-500 text-xs font-semibold">Gender</p><p className="text-lg font-bold text-gray-900">Male</p></div>
+                      <div className="text-sm"><p className="text-gray-500 text-xs font-semibold">Blood Type</p><p className="text-lg font-bold text-gray-900">O+</p></div>
+                      <div className="text-sm"><p className="text-gray-500 text-xs font-semibold">Doctor</p><p className="text-lg font-bold text-gray-900">Dr. Ali</p></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-6 shadow-lg">
+                <div className="flex gap-4 mb-6 border-b border-gray-200/50">
+                  {['Overview', 'Medical History', 'Contact Info', 'Address'].map(tab => (
+                    <button key={tab} className={`pb-4 px-2 font-semibold transition border-b-2 ${tab === 'Overview' ? 'text-blue-600 border-blue-600' : 'text-gray-600 border-transparent hover:text-gray-900'}`}>
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-gray-600 text-sm font-semibold mb-2">Full Name</p>
+                    <p className="text-gray-900 font-medium">Osama Elnaha</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm font-semibold mb-2">Date of Birth</p>
+                    <p className="text-gray-900 font-medium">11 Sep 1978</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm font-semibold mb-2">Email</p>
+                    <p className="text-gray-900 font-medium">osama@example.com</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm font-semibold mb-2">Phone</p>
+                    <p className="text-gray-900 font-medium">+966-123-4567</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right - Quick Info */}
+            <div className="space-y-6">
+              <div className="backdrop-blur-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/30 rounded-2xl p-6 shadow-lg">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Assigned Doctor</h3>
+                <div className="flex items-center gap-4 mb-4">
+                  <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop" alt="Doctor" className="w-12 h-12 rounded-full object-cover" />
+                  <div>
+                    <p className="font-bold text-gray-900">Dr. Mohamed</p>
+                    <p className="text-xs text-gray-600">Cardiologist</p>
+                  </div>
+                </div>
+                <button className="w-full py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition">
+                  Contact
+                </button>
+              </div>
+
+              <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-6 shadow-lg">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Medical Status</h3>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold mb-1">Marital Status</p>
+                    <p className="text-gray-900 font-medium">Married</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold mb-1">Nationality</p>
+                    <p className="text-gray-900 font-medium">Egyptian</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold mb-1">Blood Type</p>
+                    <p className="text-gray-900 font-medium">O+</p>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={() => setCurrentPage('vitals')} className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition">
+                View Live Vitals
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Vitals Monitoring Screen
+  const VitalsScreen = () => (
+    <div className="flex h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-blue-900 to-slate-900 text-white transition-all duration-300 shadow-2xl border-r border-blue-400/20`}>
+        <div className="p-6 flex items-center justify-between">
+          {sidebarOpen && <div className="flex items-center gap-2"><span className="text-2xl">❤️</span><span className="font-bold">WeCare</span></div>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hover:bg-blue-500/30 p-2 rounded-lg transition"><Menu size={20} /></button>
+        </div>
+        <nav className="space-y-2 px-3">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'patients', label: 'Patients', icon: '👥' },
+            { id: 'vitals', label: 'Vitals Monitor', icon: '❤️' },
+            { id: 'alerts', label: 'Alerts', icon: '🚨' },
+            { id: 'reports', label: 'Reports', icon: '📋' },
+            { id: 'settings', label: 'Settings', icon: '⚙️' }
+          ].map(item => (
+            <button key={item.id} onClick={() => setCurrentPage(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${currentPage === item.id ? 'bg-blue-500/30 backdrop-blur-sm border border-blue-400/50' : 'hover:bg-blue-500/10'}`}>
+              <span className="text-xl">{item.icon}</span>
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="bg-slate-800/60 backdrop-blur-xl border-b border-blue-400/20 px-8 py-4 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setCurrentPage('dashboard')} className="flex items-center gap-2 text-blue-400 hover:text-cyan-300 font-semibold transition">← Back</button>
+            <h1 className="text-2xl font-bold text-white">Osama Elnaha</h1>
+            <span className="px-3 py-1 bg-green-500/20 border border-green-400/50 text-green-300 text-xs font-bold rounded-full">● LIVE MONITORING</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">Updated: Just now</span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          {/* ECG Waveform */}
+          <div className="backdrop-blur-xl bg-slate-800/50 border border-blue-400/30 rounded-2xl p-6 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">ECG Waveform</h2>
+              <span className="text-sm text-cyan-300 font-semibold flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                LIVE
+              </span>
+            </div>
+            <canvas ref={canvasRef} width={1000} height={250} className="w-full rounded-lg" />
+            <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm">
+              <div>
+                <p className="text-gray-400 mb-1">BPM Range</p>
+                <p className="text-cyan-300 font-bold">60-75</p>
+              </div>
+              <div>
+                <p className="text-gray-400 mb-1">Last Update</p>
+                <p className="text-cyan-300 font-bold">Just now</p>
+              </div>
+              <div>
+                <p className="text-gray-400 mb-1">Status</p>
+                <p className="text-green-400 font-bold">Normal</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Vital Signs Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[
+              { label: 'Heart Rate', value: '72', unit: 'bpm', icon: '❤️', color: 'from-red-500 to-pink-500', status: 'Normal' },
+              { label: 'SpO₂', value: '98', unit: '%', icon: '💨', color: 'from-cyan-500 to-blue-500', status: 'Excellent' },
+              { label: 'Blood Pressure', value: '120/80', unit: 'mmHg', icon: '🩺', color: 'from-purple-500 to-pink-500', status: 'Normal' },
+              { label: 'Respiration Rate', value: '16', unit: 'breaths/min', icon: '🫁', color: 'from-green-500 to-emerald-500', status: 'Normal' },
+              { label: 'Temperature', value: '37.0', unit: '°C', icon: '🌡️', color: 'from-orange-500 to-red-500', status: 'Normal' }
+            ].map((vital, idx) => (
+              <div key={idx} className="backdrop-blur-xl bg-slate-800/50 border border-blue-400/30 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:border-blue-400/60 transition">
+                <div className="text-3xl mb-3">{vital.icon}</div>
+                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-2">{vital.label}</p>
+                <div className="mb-3">
+                  <span className="text-3xl font-bold text-white">{vital.value}</span>
+                  <span className="text-gray-400 ml-2">{vital.unit}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`px-2 py-1 bg-gradient-to-r ${vital.color} text-white font-bold rounded-full`}>{vital.status}</span>
+                  <span className="text-gray-500">Just now</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-center gap-4">
+            <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition">
+              <Play size={20} /> Start Monitoring
+            </button>
+            <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-yellow-500/30 transition">
+              <Pause size={20} /> Pause
+            </button>
+            <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-red-500/30 transition">
+              <Square size={20} /> Stop
+            </button>
+            <button className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition">
+              <Download size={20} /> Download Report
+            </button>
+          </div>
+
+          {/* History Chart */}
+          <div className="backdrop-blur-xl bg-slate-800/50 border border-blue-400/30 rounded-2xl p-6 shadow-lg">
+            <h3 className="text-lg font-bold text-white mb-4">Heart Rate History (Today)</h3>
+            <svg className="w-full h-32" viewBox="0 0 600 100" preserveAspectRatio="none">
+              <polyline points="0,40 10,35 20,30 30,25 40,30 50,35 60,40 70,45 80,50 90,55 100,50 110,45 120,40 130,35 140,30 150,25 160,30 170,35 180,40 190,45 200,50 210,55 220,60 230,65 240,60 250,55 260,50 270,45 280,40 290,35 300,30 310,25 320,30 330,35 340,40 350,45 360,50 370,55 380,60 390,65 400,70 410,65 420,60 430,55 440,50 450,45 460,40 470,35 480,30 490,25 500,30 510,35 520,40 530,45 540,50 550,55 560,50 570,45 580,40 590,35 600,30" fill="none" stroke="url(#lineGradient)" strokeWidth="2" />
+              <defs>
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#f43f5e" />
+                  <stop offset="50%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#06b6d4" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
+              <span>00:00</span>
+              <span>06:00</span>
+              <span>12:00</span>
+              <span>18:00</span>
+              <span>Now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Alerts Screen
+  const AlertsScreen = () => (
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-blue-600 to-blue-700 text-white transition-all duration-300 shadow-xl`}>
+        <div className="p-6 flex items-center justify-between">
+          {sidebarOpen && <div className="flex items-center gap-2"><span className="text-2xl">❤️</span><span className="font-bold">WeCare</span></div>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hover:bg-blue-500/30 p-2 rounded-lg transition"><Menu size={20} /></button>
+        </div>
+        <nav className="space-y-2 px-3">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+            { id: 'patients', label: 'Patients', icon: '👥' },
+            { id: 'vitals', label: 'Vitals Monitor', icon: '❤️' },
+            { id: 'alerts', label: 'Alerts', icon: '🚨' },
+            { id: 'reports', label: 'Reports', icon: '📋' },
+            { id: 'settings', label: 'Settings', icon: '⚙️' }
+          ].map(item => (
+            <button key={item.id} onClick={() => setCurrentPage(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${currentPage === item.id ? 'bg-white/20 backdrop-blur-sm' : 'hover:bg-white/10'}`}>
+              <span className="text-xl">{item.icon}</span>
+              {sidebarOpen && <span className="font-medium">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white/60 backdrop-blur-xl border-b border-white/20 px-8 py-4 flex items-center justify-between shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900">Critical Alerts</h1>
+          <div className="flex items-center gap-3">
+            <button className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition">All</button>
+            <button className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition">Critical</button>
+            <button className="px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition">Warning</button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 space-y-4">
+          {[
+            { type: 'critical', icon: '⚠️', title: 'High Heart Rate', patient: 'Osama Elnaha', value: '112 bpm', time: 'Just now', color: 'from-red-500 to-orange-600' },
+            { type: 'warning', icon: '⚡', title: 'Low SpO₂', patient: 'Noura Hassan', value: '89%', time: '2 min ago', color: 'from-yellow-500 to-orange-600' },
+            { type: 'critical', icon: '🌡️', title: 'High Temperature', patient: 'Ahmed Samir', value: '38.5°C', time: '5 min ago', color: 'from-orange-500 to-red-600' },
+            { type: 'warning', icon: '📊', title: 'Abnormal BP', patient: 'Sarah Ahmed', value: '145/95 mmHg', time: '10 min ago', color: 'from-purple-500 to-pink-600' }
+          ].map((alert, idx) => (
+            <div key={idx} className="backdrop-blur-xl bg-white/40 border-l-4 border-transparent hover:border-blue-400 rounded-2xl p-6 shadow-lg hover:shadow-xl transition group cursor-pointer" style={{borderLeftColor: alert.type === 'critical' ? '#ef4444' : '#eab308'}}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className={`text-3xl`}>{alert.icon}</div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">{alert.title}</h3>
+                    <p className="text-gray-600 text-sm mb-2">{alert.patient}</p>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 bg-gradient-to-r ${alert.color} text-white text-sm font-bold rounded-full`}>{alert.value}</span>
+                      <span className="text-xs text-gray-500">{alert.time}</span>
+                    </div>
+                  </div>
+                </div>
+                <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition opacity-0 group-hover:opacity-100">
+                  Review
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render current page
+  const renderPage = () => {
+    switch(currentPage) {
+      case 'login': return <LoginScreen />;
+      case 'dashboard': return <DashboardScreen />;
+      case 'patient-details': return <PatientDetailsScreen />;
+      case 'vitals': return <VitalsScreen />;
+      case 'alerts': return <AlertsScreen />;
+      default: return <DashboardScreen />;
+    }
+  };
+
+  return renderPage();
+}
