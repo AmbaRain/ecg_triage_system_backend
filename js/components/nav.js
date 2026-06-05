@@ -133,15 +133,95 @@ function buildSidebarHTML() {
 }
 
 /**
- * Injects the sidebar into the given container element and wires up
- * the logout button.
+ * Builds the topbar HTML string.
+ * @returns {string}
+ */
+function buildTopbarHTML() {
+  return `
+    <header class="topbar" role="banner">
+      <button class="nav-hamburger" id="nav-hamburger" aria-label="Open navigation" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="4"  width="16" height="2" rx="1"/>
+          <rect x="2" y="9"  width="16" height="2" rx="1"/>
+          <rect x="2" y="14" width="16" height="2" rx="1"/>
+        </svg>
+      </button>
+      <div class="topbar__search">
+        <div class="search-wrapper">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            class="form-input"
+            type="search"
+            id="global-search"
+            placeholder="Search patients…"
+            aria-label="Search patients"
+            style="padding-left:40px"
+          >
+        </div>
+      </div>
+      <div class="topbar__actions">
+        <div class="topbar__user" id="topbar-user">
+          <div class="avatar" id="topbar-avatar" aria-hidden="true">?</div>
+          <span id="topbar-username"></span>
+        </div>
+      </div>
+    </header>
+  `;
+}
+
+/**
+ * Injects the sidebar and topbar into the given container element,
+ * wires up the logout button, and populates the topbar user info.
  *
  * @param {HTMLElement} container
  */
 export async function injectNav(container) {
   if (!container) return;
 
-  container.innerHTML = buildSidebarHTML();
+  container.innerHTML = buildSidebarHTML() + buildTopbarHTML();
+
+  // ── Mobile sidebar drawer ──────────────────────────────────────────────────
+  const sidebar    = container.querySelector('.sidebar');
+  const hamburger  = document.getElementById('nav-hamburger');
+  const scrim      = document.createElement('div');
+  scrim.className  = 'nav-scrim';
+  document.body.appendChild(scrim);
+
+  function openSidebar() {
+    sidebar?.classList.add('sidebar--open');
+    scrim.classList.add('visible');
+    if (hamburger) hamburger.setAttribute('aria-expanded', 'true');
+  }
+  function closeSidebar() {
+    sidebar?.classList.remove('sidebar--open');
+    scrim.classList.remove('visible');
+    if (hamburger) hamburger.setAttribute('aria-expanded', 'false');
+  }
+
+  hamburger?.addEventListener('click', () =>
+    sidebar?.classList.contains('sidebar--open') ? closeSidebar() : openSidebar()
+  );
+  scrim.addEventListener('click', closeSidebar);
+  // Close drawer when a nav link is tapped on mobile
+  sidebar?.querySelectorAll('.nav-item').forEach(item =>
+    item.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); })
+  );
+
+  // Populate topbar user info
+  try {
+    const { getCurrentUser } = await import('../auth.js');
+    const user = getCurrentUser();
+    if (user) {
+      const initial = (user.full_name || user.username || '?')[0].toUpperCase();
+      const avatarEl = document.getElementById('topbar-avatar');
+      const nameEl   = document.getElementById('topbar-username');
+      if (avatarEl) avatarEl.textContent = initial;
+      if (nameEl)   nameEl.textContent   = user.full_name || user.username;
+    }
+  } catch { /* auth not available */ }
 
   // Wire logout — import auth lazily to avoid a circular dependency
   // between nav.js and auth.js during early Sprint 1 loading.

@@ -2937,3 +2937,162 @@ body.dragging .drop-zone { pointer-events: all; }
 /* Save status */
 .settings-save-status { font-size: 0.8125rem; color: var(--color-accent); font-weight: 600; }
 .settings-actions { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+
+
+/* ─── Mobile ──────────────────────────────────────────────────────────────────
+   Breakpoint: 768px
+   Strategy: sidebar becomes a fixed slide-in drawer triggered by a hamburger
+   button in the topbar. Topbar and content-area expand to fill the single
+   column. Tables scroll horizontally.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Hamburger — hidden on desktop */
+.nav-hamburger { display: none; }
+
+/* Mobile nav scrim — hidden until sidebar opens */
+.nav-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: calc(var(--z-nav) + 5);
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.2s ease both;
+}
+.nav-scrim.visible { display: block; }
+
+@media (max-width: 768px) {
+
+  /* ── App shell: drop the sidebar column ── */
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-height) 1fr;
+  }
+
+  /* ── Sidebar: fixed off-screen drawer ── */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--sidebar-width) !important;
+    z-index: calc(var(--z-nav) + 10);
+    transform: translateX(-100%);
+    transition: transform var(--transition-base);
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.sidebar--open {
+    transform: translateX(0);
+  }
+
+  /* ── Topbar: full width, show hamburger ── */
+  .topbar {
+    grid-column: 1;
+    padding: 0 var(--space-4);
+  }
+  .nav-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    order: -1; /* hamburger left of search */
+  }
+  .nav-hamburger:hover {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+  }
+  .topbar__search {
+    display: none; /* hidden on small screens; revealed ≥480px below */
+  }
+
+  /* ── Content area: full width, tighter padding ── */
+  .content-area {
+    grid-column: 1;
+    padding: var(--space-4);
+  }
+
+  /* ── Typography ── */
+  h1 { font-size: 1.375rem; }
+  h2 { font-size: 1.25rem; }
+
+  /* ── Page headers: stack ── */
+  .page-header,
+  .patients-page__header,
+  .alerts-page__header,
+  .reports-page__header,
+  .settings-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  /* ── Page padding ── */
+  .patients-page,
+  .alerts-page,
+  .reports-page,
+  .settings-page { padding: var(--space-4); }
+
+  /* ── Tables: scroll container ── */
+  .data-table { min-width: 580px; }
+  .card { overflow-x: auto; }
+
+  /* ── Stat grid: 2 columns on small screens ── */
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* ── Upload ── */
+  .upload-page { padding: var(--space-4); }
+  .upload-patient-row { flex-direction: column; }
+  .upload-submit-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .upload-submit-bar .btn { width: 100%; justify-content: center; }
+
+  /* ── Results ── */
+  .results-layout { padding: var(--space-4) var(--space-3); }
+  .results-topbar { padding: var(--space-3) var(--space-4); }
+  .results-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* ── Waveform subbar: single column ── */
+  .waveform-subbar { grid-template-columns: 1fr; text-align: left; gap: var(--space-2); }
+
+  /* ── Patient profile header: stack actions ── */
+  .patient-profile-header__actions { align-items: flex-start; width: 100%; }
+  .patient-profile-header__actions .btn { width: 100%; justify-content: center; }
+
+  /* ── Reports summary bar: scroll horizontally ── */
+  .reports-summary-bar { overflow-x: auto; flex-wrap: nowrap; padding-bottom: var(--space-2); }
+
+  /* ── Reports grid: single column ── */
+  .reports-grid { grid-template-columns: 1fr; }
+
+  /* ── Settings layout: already breaks at 680px — handled above ── */
+
+  /* ── Modal: full-width on small screens ── */
+  .modal-scrim { padding: var(--space-3); }
+  .modal { padding: var(--space-5); }
+  .modal-box { padding: var(--space-5); }
+
+  /* ── Alert cards: tighten ── */
+  .alert-card { padding: var(--space-3) var(--space-4); }
+
+  /* ── CTA card on dashboard: stack ── */
+  .cta-card { flex-direction: column; align-items: flex-start; }
+  .cta-card .btn { width: 100%; justify-content: center; }
+  .sparkline-wrapper { display: none; }
+}
+
+/* Show search again from 480px up */
+@media (min-width: 480px) and (max-width: 768px) {
+  .topbar__search { display: block; }
+  .topbar__search .form-input { font-size: 0.875rem; }
+}

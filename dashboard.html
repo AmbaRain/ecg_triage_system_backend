@@ -61,32 +61,6 @@
   <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
   <div id="nav-container"></div>
 
-  <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
-  <header class="topbar" role="banner">
-    <div class="topbar__search">
-      <div class="search-wrapper">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24"
-             fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          class="form-input"
-          type="search"
-          id="global-search"
-          placeholder="Search patients…"
-          aria-label="Search patients"
-          style="padding-left:40px"
-        >
-      </div>
-    </div>
-    <div class="topbar__actions">
-      <div class="topbar__user" id="topbar-user">
-        <div class="avatar" id="topbar-avatar" aria-hidden="true">?</div>
-        <span id="topbar-username"></span>
-      </div>
-    </div>
-  </header>
-
   <!-- ── Main content ──────────────────────────────────────────────────────── -->
   <main class="content-area" id="main-content" aria-label="Dashboard">
     <div class="content-inner">
@@ -156,7 +130,7 @@
           Loading patients…
         </div>
 
-        <div id="patients-table-wrap" style="display:none">
+        <div id="patients-table-wrap" style="display:none;overflow-x:auto">
           <table class="data-table" id="patients-table">
             <thead>
               <tr>
@@ -210,20 +184,11 @@
 <script type="module">
 import { injectNav }       from './js/components/nav.js';
 import { showToast }       from './js/components/toast.js';
-import { getCurrentUser }  from './js/auth.js';
 import { API }             from './js/api-adapter.js';
 import { navigateTo }      from './js/router.js';
 
 // ── Inject navigation ──────────────────────────────────────────────────────
 await injectNav(document.getElementById('nav-container'));
-
-// ── Populate topbar with current user ─────────────────────────────────────
-const user = getCurrentUser();
-if (user) {
-  const initial = (user.full_name || user.username || '?')[0].toUpperCase();
-  document.getElementById('topbar-avatar').textContent   = initial;
-  document.getElementById('topbar-username').textContent = user.full_name || user.username;
-}
 
 // ── Date label ────────────────────────────────────────────────────────────
 document.getElementById('dashboard-date').textContent =
