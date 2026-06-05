@@ -2963,13 +2963,13 @@ body.dragging .drop-zone { pointer-events: all; }
 
 @media (max-width: 768px) {
 
-  /* ── App shell: drop the sidebar column ── */
+  /* ── App shell: flex column so the sidebar can't reserve grid space ── */
   .app-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: var(--topbar-height) 1fr;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* ── Sidebar: fixed off-screen drawer ── */
+  /* ── Sidebar: fixed off-screen drawer (out of flex flow) ── */
   .sidebar {
     position: fixed;
     top: 0;
@@ -2985,9 +2985,10 @@ body.dragging .drop-zone { pointer-events: all; }
     transform: translateX(0);
   }
 
-  /* ── Topbar: full width, show hamburger ── */
+  /* ── Topbar: full width, fixed height, show hamburger ── */
   .topbar {
-    grid-column: 1;
+    flex-shrink: 0;
+    height: var(--topbar-height);
     padding: 0 var(--space-4);
   }
   .nav-hamburger {
@@ -3013,9 +3014,10 @@ body.dragging .drop-zone { pointer-events: all; }
     display: none; /* hidden on small screens; revealed ≥480px below */
   }
 
-  /* ── Content area: full width, tighter padding ── */
+  /* ── Content area: takes remaining flex height, tighter padding ── */
   .content-area {
-    grid-column: 1;
+    flex: 1;
+    min-height: 0;
     padding: var(--space-4);
   }
 
