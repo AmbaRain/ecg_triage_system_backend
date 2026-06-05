@@ -1,222 +1,362 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Upload a 12-lead ECG in CSV or WFDB format for AI-powered triage analysis on the ECG Triage platform.">
-  <title>Upload ECG — ECG Triage</title>
-  <link rel="stylesheet" href="./css/styles.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Upload a 12-lead ECG in CSV or WFDB format for AI-powered triage analysis on the ECG Triage platform."
+    />
+    <title>Upload ECG — ECG Triage</title>
+    <link rel="stylesheet" href="./css/styles.css" />
 
-  <!-- Auth guard: redirect to login if no session -->
-  <script type="module">
-    import { requireAuth } from './js/auth.js';
-    if (!requireAuth()) throw new Error('Unauthenticated');
-  </script>
-</head>
-<body>
+    <!-- Auth guard: redirect to login if no session -->
+    <script type="module">
+      import { requireAuth } from "./js/auth.js";
+      if (!requireAuth()) throw new Error("Unauthenticated");
+    </script>
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- Shared navigation -->
+      <div id="nav-container"></div>
 
-<div id="app-shell" class="app-shell">
+      <!-- Page content -->
+      <main class="content-area">
+        <div class="upload-page">
+          <!-- Page heading -->
+          <div>
+            <h1 class="upload-page__title">Upload ECG</h1>
+            <p class="upload-page__subtitle">
+              Submit a 12-lead ECG recording for AI-powered diagnostic analysis.
+              Results are returned in under 2 seconds.
+            </p>
+          </div>
 
-  <!-- Shared navigation -->
-  <div id="nav-container"></div>
-
-  <!-- Page content -->
-  <main class="content-area">
-
-    <div class="upload-page">
-
-      <!-- Page heading -->
-      <div>
-        <h1 class="upload-page__title">Upload ECG</h1>
-        <p class="upload-page__subtitle">
-          Submit a 12-lead ECG recording for AI-powered diagnostic analysis.
-          Results are returned in under 2 seconds.
-        </p>
-      </div>
-
-      <!-- Mode toggle -->
-      <div class="upload-mode-toggle" role="group" aria-label="Upload format">
-        <button
-          id="btn-mode-csv"
-          class="upload-mode-btn active"
-          data-mode="csv"
-          aria-pressed="true"
-        >
-          CSV Format
-        </button>
-        <button
-          id="btn-mode-wfdb"
-          class="upload-mode-btn"
-          data-mode="wfdb"
-          aria-pressed="false"
-        >
-          WFDB Format (.dat + .hea)
-        </button>
-      </div>
-
-      <!-- ── CSV panel ──────────────────────────────────────────────────── -->
-      <div id="panel-csv" class="upload-card">
-        <p class="upload-card__title">CSV File</p>
-
-        <div
-          id="drop-zone-csv"
-          class="drop-zone"
-          role="button"
-          tabindex="0"
-          aria-label="Drop CSV file here or click to browse"
-        >
-          <!-- Upload icon -->
-          <svg class="drop-zone__icon" xmlns="http://www.w3.org/2000/svg" fill="none"
-               viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-          </svg>
-          <span class="drop-zone__label">Drop your CSV file here</span>
-          <span class="drop-zone__hint">or <span class="drop-zone__file-link">click to browse</span> · .csv · max 10 MB</span>
-          <input id="input-csv" type="file" accept=".csv" aria-label="Select CSV file">
-        </div>
-
-        <!-- Selected file info -->
-        <div id="csv-file-info" class="file-selected-info" style="display:none" aria-live="polite">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <span class="file-selected-info__name"></span>
-          <span class="file-selected-info__size"></span>
-        </div>
-
-        <!-- Inline error -->
-        <div id="error-csv" class="field-error" style="display:none" role="alert"></div>
-      </div>
-
-      <!-- ── WFDB panel ─────────────────────────────────────────────────── -->
-      <div id="panel-wfdb" class="upload-card" style="display:none">
-        <p class="upload-card__title">WFDB Files</p>
-
-        <!-- DAT file -->
-        <p class="form-label" style="margin-bottom:8px">Signal file (.dat)</p>
-        <div
-          id="drop-zone-dat"
-          class="drop-zone"
-          role="button"
-          tabindex="0"
-          aria-label="Drop .dat file here or click to browse"
-        >
-          <svg class="drop-zone__icon" xmlns="http://www.w3.org/2000/svg" fill="none"
-               viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-          </svg>
-          <span class="drop-zone__label">Drop .dat file here</span>
-          <span class="drop-zone__hint">or <span class="drop-zone__file-link">click to browse</span> · .dat · max 10 MB</span>
-          <input id="input-dat" type="file" accept=".dat" aria-label="Select .dat signal file">
-        </div>
-        <div id="dat-file-info" class="file-selected-info" style="display:none" aria-live="polite">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <span class="file-selected-info__name"></span>
-          <span class="file-selected-info__size"></span>
-        </div>
-        <div id="error-dat" class="field-error" style="display:none" role="alert"></div>
-
-        <!-- HEA file -->
-        <p class="form-label" style="margin-top:16px; margin-bottom:8px">Header file (.hea)</p>
-        <div
-          id="drop-zone-hea"
-          class="drop-zone"
-          role="button"
-          tabindex="0"
-          aria-label="Drop .hea file here or click to browse"
-        >
-          <svg class="drop-zone__icon" xmlns="http://www.w3.org/2000/svg" fill="none"
-               viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-          </svg>
-          <span class="drop-zone__label">Drop .hea file here</span>
-          <span class="drop-zone__hint">or <span class="drop-zone__file-link">click to browse</span> · .hea · max 10 MB</span>
-          <input id="input-hea" type="file" accept=".hea" aria-label="Select .hea header file">
-        </div>
-        <div id="hea-file-info" class="file-selected-info" style="display:none" aria-live="polite">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          <span class="file-selected-info__name"></span>
-          <span class="file-selected-info__size"></span>
-        </div>
-        <div id="error-hea" class="field-error" style="display:none" role="alert"></div>
-
-        <!-- WFDB pair name-mismatch error -->
-        <div id="error-wfdb-pair" class="field-error" style="display:none;margin-top:12px" role="alert"></div>
-      </div>
-
-      <!-- ── Patient ID + Submit ─────────────────────────────────────────── -->
-      <div class="upload-card">
-        <p class="upload-card__title">Patient Information</p>
-
-        <div class="form-group">
-          <label class="form-label" for="input-patient-id">Patient ID</label>
-          <input
-            id="input-patient-id"
-            class="form-input"
-            type="text"
-            placeholder="e.g. p_001"
-            autocomplete="off"
-            aria-required="true"
-            aria-describedby="patient-id-hint"
+          <!-- Mode toggle -->
+          <div
+            class="upload-mode-toggle"
+            role="group"
+            aria-label="Upload format"
           >
-          <p id="patient-id-hint" class="form-hint">
-            Enter the identifier exactly as it appears in the patient registry.
-          </p>
+            <button
+              id="btn-mode-csv"
+              class="upload-mode-btn active"
+              data-mode="csv"
+              aria-pressed="true"
+            >
+              CSV Format
+            </button>
+            <button
+              id="btn-mode-wfdb"
+              class="upload-mode-btn"
+              data-mode="wfdb"
+              aria-pressed="false"
+            >
+              WFDB Format (.dat + .hea)
+            </button>
+          </div>
+
+          <!-- ── CSV panel ──────────────────────────────────────────────────── -->
+          <div id="panel-csv" class="upload-card">
+            <p class="upload-card__title">CSV File</p>
+
+            <div
+              id="drop-zone-csv"
+              class="drop-zone"
+              role="button"
+              tabindex="0"
+              aria-label="Drop CSV file here or click to browse"
+            >
+              <!-- Upload icon -->
+              <svg
+                class="drop-zone__icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <span class="drop-zone__label">Drop your CSV file here</span>
+              <span class="drop-zone__hint"
+                >or <span class="drop-zone__file-link">click to browse</span> ·
+                .csv · max 10 MB</span
+              >
+              <input
+                id="input-csv"
+                type="file"
+                accept=".csv"
+                aria-label="Select CSV file"
+              />
+            </div>
+
+            <!-- Selected file info -->
+            <div
+              id="csv-file-info"
+              class="file-selected-info"
+              style="display: none"
+              aria-live="polite"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span class="file-selected-info__name"></span>
+              <span class="file-selected-info__size"></span>
+            </div>
+
+            <!-- Inline error -->
+            <div
+              id="error-csv"
+              class="field-error"
+              style="display: none"
+              role="alert"
+            ></div>
+          </div>
+
+          <!-- ── WFDB panel ─────────────────────────────────────────────────── -->
+          <div id="panel-wfdb" class="upload-card" style="display: none">
+            <p class="upload-card__title">WFDB Files</p>
+
+            <!-- DAT file -->
+            <p class="form-label" style="margin-bottom: 8px">
+              Signal file (.dat)
+            </p>
+            <div
+              id="drop-zone-dat"
+              class="drop-zone"
+              role="button"
+              tabindex="0"
+              aria-label="Drop .dat file here or click to browse"
+            >
+              <svg
+                class="drop-zone__icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <span class="drop-zone__label">Drop .dat file here</span>
+              <span class="drop-zone__hint"
+                >or <span class="drop-zone__file-link">click to browse</span> ·
+                .dat · max 10 MB</span
+              >
+              <input
+                id="input-dat"
+                type="file"
+                accept=".dat"
+                aria-label="Select .dat signal file"
+              />
+            </div>
+            <div
+              id="dat-file-info"
+              class="file-selected-info"
+              style="display: none"
+              aria-live="polite"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span class="file-selected-info__name"></span>
+              <span class="file-selected-info__size"></span>
+            </div>
+            <div
+              id="error-dat"
+              class="field-error"
+              style="display: none"
+              role="alert"
+            ></div>
+
+            <!-- HEA file -->
+            <p class="form-label" style="margin-top: 16px; margin-bottom: 8px">
+              Header file (.hea)
+            </p>
+            <div
+              id="drop-zone-hea"
+              class="drop-zone"
+              role="button"
+              tabindex="0"
+              aria-label="Drop .hea file here or click to browse"
+            >
+              <svg
+                class="drop-zone__icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                />
+              </svg>
+              <span class="drop-zone__label">Drop .hea file here</span>
+              <span class="drop-zone__hint"
+                >or <span class="drop-zone__file-link">click to browse</span> ·
+                .hea · max 10 MB</span
+              >
+              <input
+                id="input-hea"
+                type="file"
+                accept=".hea"
+                aria-label="Select .hea header file"
+              />
+            </div>
+            <div
+              id="hea-file-info"
+              class="file-selected-info"
+              style="display: none"
+              aria-live="polite"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span class="file-selected-info__name"></span>
+              <span class="file-selected-info__size"></span>
+            </div>
+            <div
+              id="error-hea"
+              class="field-error"
+              style="display: none"
+              role="alert"
+            ></div>
+
+            <!-- WFDB pair name-mismatch error -->
+            <div
+              id="error-wfdb-pair"
+              class="field-error"
+              style="display: none; margin-top: 12px"
+              role="alert"
+            ></div>
+          </div>
+
+          <!-- ── Patient ID + Submit ─────────────────────────────────────────── -->
+          <div class="upload-card">
+            <p class="upload-card__title">Patient Information</p>
+
+            <div class="form-group">
+              <label class="form-label" for="input-patient-id"
+                >Patient ID</label
+              >
+              <input
+                id="input-patient-id"
+                class="form-input"
+                type="text"
+                placeholder="e.g. p_001"
+                autocomplete="off"
+                aria-required="true"
+                aria-describedby="patient-id-hint"
+              />
+              <p id="patient-id-hint" class="form-hint">
+                Enter the identifier exactly as it appears in the patient
+                registry.
+              </p>
+            </div>
+
+            <div class="upload-submit-bar" style="margin-top: var(--space-6)">
+              <p class="upload-submit-bar__hint">
+                File validation runs client-side before upload.
+              </p>
+              <button
+                id="btn-submit-upload"
+                class="btn btn--primary btn--lg"
+                disabled
+                aria-disabled="true"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  width="18"
+                  height="18"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                  />
+                </svg>
+                Analyze ECG
+              </button>
+            </div>
+          </div>
         </div>
+        <!-- /.upload-page -->
+      </main>
+    </div>
+    <!-- /#app-shell -->
 
-        <div class="upload-submit-bar" style="margin-top:var(--space-6)">
-          <p class="upload-submit-bar__hint">
-            File validation runs client-side before upload.
-          </p>
-          <button
-            id="btn-submit-upload"
-            class="btn btn--primary btn--lg"
-            disabled
-            aria-disabled="true"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-            </svg>
-            Analyze ECG
-          </button>
-        </div>
-      </div>
+    <script type="module">
+      import { injectNav } from "./js/components/nav.js";
+      import { initUploadPage } from "./js/upload.js";
 
-    </div><!-- /.upload-page -->
-  </main>
-</div><!-- /#app-shell -->
+      injectNav(document.getElementById("nav-container"));
+      initUploadPage();
 
-<script type="module">
-  import { injectNav }       from './js/components/nav.js';
-  import { initUploadPage }  from './js/upload.js';
-
-  injectNav(document.getElementById('nav-container'));
-  initUploadPage();
-
-  // Global unhandled-rejection handler (see Section 10 of blueprint)
-  window.addEventListener('unhandledrejection', event => {
-    const err = event.reason;
-    if (err?.status === 401) { window.location.href = '/login.html'; return; }
-    import('./js/components/toast.js').then(({ showToast }) => {
-      showToast(err?.message || 'An unexpected error occurred.', 'error');
-    });
-  });
-</script>
-
-</body>
+      // Global unhandled-rejection handler (see Section 10 of blueprint)
+      window.addEventListener("unhandledrejection", (event) => {
+        const err = event.reason;
+        if (err?.status === 401) {
+          window.location.href = "login.html";
+          return;
+        }
+        import("./js/components/toast.js").then(({ showToast }) => {
+          showToast(err?.message || "An unexpected error occurred.", "error");
+        });
+      });
+    </script>
+  </body>
 </html>

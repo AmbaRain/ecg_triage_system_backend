@@ -1,284 +1,379 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="View AI-generated ECG triage results including primary diagnosis, confidence scores, and full 12-lead waveform visualization.">
-  <title>Results — ECG Triage</title>
-  <link rel="stylesheet" href="./css/styles.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="View AI-generated ECG triage results including primary diagnosis, confidence scores, and full 12-lead waveform visualization."
+    />
+    <title>Results — ECG Triage</title>
+    <link rel="stylesheet" href="./css/styles.css" />
 
-  <!-- Auth guard -->
-  <script type="module">
-    import { requireAuth } from './js/auth.js';
-    if (!requireAuth()) throw new Error('Unauthenticated');
-  </script>
+    <!-- Auth guard -->
+    <script type="module">
+      import { requireAuth } from "./js/auth.js";
+      if (!requireAuth()) throw new Error("Unauthenticated");
+    </script>
 
-  <!-- Plotly — loaded before the page module so Plotly is a global by the time
+    <!-- Plotly — loaded before the page module so Plotly is a global by the time
        waveform.js calls Plotly.newPlot(). Do NOT use type="module" here. -->
-  <script src="./vendor/plotly.min.js"></script>
-</head>
-<body>
+    <script src="./vendor/plotly.min.js"></script>
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- Shared navigation -->
+      <div id="nav-container"></div>
 
-<div id="app-shell" class="app-shell">
+      <!-- Content wrapper -->
+      <main class="content-area">
+        <!-- Topbar: breadcrumb + status -->
+        <div class="results-topbar">
+          <a
+            href="/dashboard.html"
+            class="results-topbar__back"
+            id="btn-back-dashboard"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Dashboard
+          </a>
+          <span class="results-topbar__title">Prediction Results</span>
+          <span
+            id="result-status-badge"
+            class="status-badge status-badge--success"
+            aria-live="polite"
+          >
+            ● Completed
+          </span>
+        </div>
 
-  <!-- Shared navigation -->
-  <div id="nav-container"></div>
+        <!-- Two-column results layout -->
+        <div class="results-layout">
+          <!-- ── Left column: waveform + metadata ──────────────────────────── -->
+          <div
+            style="display: flex; flex-direction: column; gap: var(--space-6)"
+          >
+            <!-- Waveform section — maps from React Vitals canvas block -->
+            <section class="waveform-section" aria-label="ECG Waveform">
+              <div class="waveform-header">
+                <h3>ECG Waveform</h3>
+                <span class="waveform-meta" id="waveform-meta"
+                  >12 leads · 500 Hz · 10 s</span
+                >
+              </div>
 
-  <!-- Content wrapper -->
-  <main class="content-area">
+              <!-- Lead selector tabs (populated by JS) -->
+              <div class="lead-tabs" id="lead-tabs" aria-label="Lead selector">
+                <button class="lead-tab active" data-lead="all">
+                  All Leads
+                </button>
+                <!-- Individual lead tabs injected by JS after data loads -->
+              </div>
 
-    <!-- Topbar: breadcrumb + status -->
-    <div class="results-topbar">
-      <a href="/dashboard.html" class="results-topbar__back" id="btn-back-dashboard">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-        </svg>
-        Dashboard
-      </a>
-      <span class="results-topbar__title">Prediction Results</span>
-      <span id="result-status-badge" class="status-badge status-badge--success" aria-live="polite">
-        ● Completed
-      </span>
+              <!-- Plotly renders here -->
+              <div
+                id="waveform-container"
+                class="waveform-container"
+                aria-label="ECG waveform chart"
+              >
+                <!-- Skeleton while loading -->
+                <div
+                  id="waveform-skeleton"
+                  style="
+                    padding: 24px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                  "
+                >
+                  <div
+                    class="skeleton skeleton--bar"
+                    style="width: 100%; height: 8px"
+                  ></div>
+                  <div
+                    class="skeleton skeleton--bar"
+                    style="width: 100%; height: 8px; opacity: 0.7"
+                  ></div>
+                  <div
+                    class="skeleton skeleton--bar"
+                    style="width: 100%; height: 8px; opacity: 0.5"
+                  ></div>
+                  <div
+                    class="skeleton skeleton--bar"
+                    style="width: 100%; height: 8px; opacity: 0.4"
+                  ></div>
+                  <div
+                    class="skeleton skeleton--bar"
+                    style="width: 100%; height: 8px; opacity: 0.3"
+                  ></div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Vital stats cards — maps from React Vitals card grid -->
+            <section aria-label="Recording metadata">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: repeat(3, 1fr);
+                  gap: var(--space-4);
+                "
+              >
+                <div class="card stat-card" id="meta-card-leads">
+                  <p class="stat-card__label">Lead Count</p>
+                  <p class="stat-card__value" id="meta-leads">
+                    <span
+                      class="skeleton skeleton--text"
+                      style="width: 40px; display: inline-block"
+                    ></span>
+                  </p>
+                  <p class="stat-card__sub">channels recorded</p>
+                </div>
+
+                <div class="card stat-card" id="meta-card-rate">
+                  <p class="stat-card__label">Sampling Rate</p>
+                  <p class="stat-card__value" id="meta-rate">
+                    <span
+                      class="skeleton skeleton--text"
+                      style="width: 60px; display: inline-block"
+                    ></span>
+                  </p>
+                  <p class="stat-card__sub">Hz</p>
+                </div>
+
+                <div class="card stat-card" id="meta-card-duration">
+                  <p class="stat-card__label">Duration</p>
+                  <p class="stat-card__value" id="meta-duration">
+                    <span
+                      class="skeleton skeleton--text"
+                      style="width: 40px; display: inline-block"
+                    ></span>
+                  </p>
+                  <p class="stat-card__sub">seconds</p>
+                </div>
+              </div>
+            </section>
+          </div>
+          <!-- /left column -->
+
+          <!-- ── Right column: diagnosis panel ─────────────────────────────── -->
+          <aside>
+            <div class="diagnosis-panel" aria-label="Diagnosis results">
+              <!-- Primary diagnosis header -->
+              <div class="diagnosis-panel__header">
+                <h2>AI Diagnosis</h2>
+
+                <!-- Primary label skeleton → replaced when data loads -->
+                <div class="primary-diagnosis">
+                  <div id="primary-label" class="primary-diagnosis__label">
+                    <span
+                      class="skeleton skeleton--heading"
+                      style="display: block"
+                    ></span>
+                  </div>
+
+                  <div class="confidence-bar-wrap">
+                    <div class="confidence-bar">
+                      <div
+                        class="confidence-bar__fill"
+                        id="confidence-bar-fill"
+                        style="width: 0%"
+                      ></div>
+                    </div>
+                    <span class="confidence-pct" id="confidence">—</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Secondary labels -->
+              <div
+                class="secondary-labels"
+                id="secondary-labels"
+                aria-label="Secondary diagnoses"
+              >
+                <!-- Skeleton rows -->
+                <div class="secondary-label">
+                  <span
+                    class="secondary-label__name skeleton skeleton--text"
+                    style="width: 120px"
+                  ></span>
+                  <div class="secondary-label__bar-wrap">
+                    <div class="secondary-label__bar">
+                      <div
+                        class="secondary-label__bar-fill skeleton"
+                        style="width: 100%; height: 100%"
+                      ></div>
+                    </div>
+                    <span
+                      class="secondary-label__pct skeleton skeleton--text"
+                      style="width: 30px"
+                    ></span>
+                  </div>
+                </div>
+                <div class="secondary-label">
+                  <span
+                    class="secondary-label__name skeleton skeleton--text"
+                    style="width: 100px"
+                  ></span>
+                  <div class="secondary-label__bar-wrap">
+                    <div class="secondary-label__bar">
+                      <div
+                        class="secondary-label__bar-fill skeleton"
+                        style="width: 100%; height: 100%"
+                      ></div>
+                    </div>
+                    <span
+                      class="secondary-label__pct skeleton skeleton--text"
+                      style="width: 30px"
+                    ></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Prediction metadata -->
+              <div class="prediction-meta">
+                <div>
+                  <p class="meta-item__label">Prediction ID</p>
+                  <p class="meta-item__value" id="meta-prediction-id">—</p>
+                </div>
+                <div>
+                  <p class="meta-item__label">Patient</p>
+                  <p class="meta-item__value" id="meta-patient-id">—</p>
+                </div>
+                <div>
+                  <p class="meta-item__label">Analysed</p>
+                  <p class="meta-item__value" id="meta-timestamp">—</p>
+                </div>
+                <div>
+                  <p class="meta-item__label">Status</p>
+                  <p class="meta-item__value" id="meta-status">—</p>
+                </div>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="results-actions">
+                <a
+                  id="btn-view-patient"
+                  href="/patients.html"
+                  class="btn btn--ghost btn--sm"
+                >
+                  View Patient Record
+                </a>
+                <a href="/upload.html" class="btn btn--ghost btn--sm">
+                  New Upload
+                </a>
+              </div>
+            </div>
+            <!-- /.diagnosis-panel -->
+          </aside>
+          <!-- /right column -->
+        </div>
+        <!-- /.results-layout -->
+      </main>
     </div>
+    <!-- /#app-shell -->
 
-    <!-- Two-column results layout -->
-    <div class="results-layout">
+    <script type="module">
+      import { injectNav } from "./js/components/nav.js";
+      import { showToast } from "./js/components/toast.js";
+      import { getQueryParam } from "./js/router.js";
+      import { API } from "./js/api-adapter.js";
+      import { setState } from "./js/state.js";
+      import { renderWaveform } from "./js/waveform.js";
 
-      <!-- ── Left column: waveform + metadata ──────────────────────────── -->
-      <div style="display:flex;flex-direction:column;gap:var(--space-6)">
+      injectNav(document.getElementById("nav-container"));
 
-        <!-- Waveform section — maps from React Vitals canvas block -->
-        <section class="waveform-section" aria-label="ECG Waveform">
-          <div class="waveform-header">
-            <h3>ECG Waveform</h3>
-            <span class="waveform-meta" id="waveform-meta">12 leads · 500 Hz · 10 s</span>
-          </div>
-
-          <!-- Lead selector tabs (populated by JS) -->
-          <div class="lead-tabs" id="lead-tabs" aria-label="Lead selector">
-            <button class="lead-tab active" data-lead="all">All Leads</button>
-            <!-- Individual lead tabs injected by JS after data loads -->
-          </div>
-
-          <!-- Plotly renders here -->
-          <div id="waveform-container" class="waveform-container" aria-label="ECG waveform chart">
-            <!-- Skeleton while loading -->
-            <div id="waveform-skeleton" style="padding:24px;display:flex;flex-direction:column;gap:12px">
-              <div class="skeleton skeleton--bar" style="width:100%;height:8px"></div>
-              <div class="skeleton skeleton--bar" style="width:100%;height:8px;opacity:.7"></div>
-              <div class="skeleton skeleton--bar" style="width:100%;height:8px;opacity:.5"></div>
-              <div class="skeleton skeleton--bar" style="width:100%;height:8px;opacity:.4"></div>
-              <div class="skeleton skeleton--bar" style="width:100%;height:8px;opacity:.3"></div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Vital stats cards — maps from React Vitals card grid -->
-        <section aria-label="Recording metadata">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4)">
-
-            <div class="card stat-card" id="meta-card-leads">
-              <p class="stat-card__label">Lead Count</p>
-              <p class="stat-card__value" id="meta-leads">
-                <span class="skeleton skeleton--text" style="width:40px;display:inline-block"></span>
-              </p>
-              <p class="stat-card__sub">channels recorded</p>
-            </div>
-
-            <div class="card stat-card" id="meta-card-rate">
-              <p class="stat-card__label">Sampling Rate</p>
-              <p class="stat-card__value" id="meta-rate">
-                <span class="skeleton skeleton--text" style="width:60px;display:inline-block"></span>
-              </p>
-              <p class="stat-card__sub">Hz</p>
-            </div>
-
-            <div class="card stat-card" id="meta-card-duration">
-              <p class="stat-card__label">Duration</p>
-              <p class="stat-card__value" id="meta-duration">
-                <span class="skeleton skeleton--text" style="width:40px;display:inline-block"></span>
-              </p>
-              <p class="stat-card__sub">seconds</p>
-            </div>
-
-          </div>
-        </section>
-
-      </div><!-- /left column -->
-
-      <!-- ── Right column: diagnosis panel ─────────────────────────────── -->
-      <aside>
-
-        <div class="diagnosis-panel" aria-label="Diagnosis results">
-
-          <!-- Primary diagnosis header -->
-          <div class="diagnosis-panel__header">
-            <h2>AI Diagnosis</h2>
-
-            <!-- Primary label skeleton → replaced when data loads -->
-            <div class="primary-diagnosis">
-              <div id="primary-label" class="primary-diagnosis__label">
-                <span class="skeleton skeleton--heading" style="display:block"></span>
-              </div>
-
-              <div class="confidence-bar-wrap">
-                <div class="confidence-bar">
-                  <div class="confidence-bar__fill" id="confidence-bar-fill" style="width:0%"></div>
-                </div>
-                <span class="confidence-pct" id="confidence">—</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Secondary labels -->
-          <div class="secondary-labels" id="secondary-labels" aria-label="Secondary diagnoses">
-            <!-- Skeleton rows -->
-            <div class="secondary-label">
-              <span class="secondary-label__name skeleton skeleton--text" style="width:120px"></span>
-              <div class="secondary-label__bar-wrap">
-                <div class="secondary-label__bar">
-                  <div class="secondary-label__bar-fill skeleton" style="width:100%;height:100%"></div>
-                </div>
-                <span class="secondary-label__pct skeleton skeleton--text" style="width:30px"></span>
-              </div>
-            </div>
-            <div class="secondary-label">
-              <span class="secondary-label__name skeleton skeleton--text" style="width:100px"></span>
-              <div class="secondary-label__bar-wrap">
-                <div class="secondary-label__bar">
-                  <div class="secondary-label__bar-fill skeleton" style="width:100%;height:100%"></div>
-                </div>
-                <span class="secondary-label__pct skeleton skeleton--text" style="width:30px"></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Prediction metadata -->
-          <div class="prediction-meta">
-            <div>
-              <p class="meta-item__label">Prediction ID</p>
-              <p class="meta-item__value" id="meta-prediction-id">—</p>
-            </div>
-            <div>
-              <p class="meta-item__label">Patient</p>
-              <p class="meta-item__value" id="meta-patient-id">—</p>
-            </div>
-            <div>
-              <p class="meta-item__label">Analysed</p>
-              <p class="meta-item__value" id="meta-timestamp">—</p>
-            </div>
-            <div>
-              <p class="meta-item__label">Status</p>
-              <p class="meta-item__value" id="meta-status">—</p>
-            </div>
-          </div>
-
-          <!-- Action buttons -->
-          <div class="results-actions">
-            <a
-              id="btn-view-patient"
-              href="/patients.html"
-              class="btn btn--ghost btn--sm"
-            >
-              View Patient Record
-            </a>
-            <a
-              href="/upload.html"
-              class="btn btn--ghost btn--sm"
-            >
-              New Upload
-            </a>
-          </div>
-
-        </div><!-- /.diagnosis-panel -->
-
-      </aside><!-- /right column -->
-
-    </div><!-- /.results-layout -->
-
-  </main>
-</div><!-- /#app-shell -->
-
-<script type="module">
-  import { injectNav }          from './js/components/nav.js';
-  import { showToast }          from './js/components/toast.js';
-  import { getQueryParam }      from './js/router.js';
-  import { API }                from './js/api-adapter.js';
-  import { setState }           from './js/state.js';
-  import { renderWaveform }     from './js/waveform.js';
-
-  injectNav(document.getElementById('nav-container'));
-
-  // Global unhandled-rejection → 401 redirect, else toast
-  window.addEventListener('unhandledrejection', event => {
-    const err = event.reason;
-    if (err?.status === 401) { window.location.href = '/login.html'; return; }
-    showToast(err?.message || 'An unexpected error occurred.', 'error');
-  });
-
-  // ── Read prediction ID from URL ────────────────────────────────────────────
-  const predictionId = getQueryParam('prediction_id');
-
-  if (!predictionId) {
-    // No ID in URL — nothing to show; go home
-    window.location.replace('/dashboard.html');
-  }
-
-  // ── Helper: format ISO timestamp to locale date/time string ───────────────
-  function fmtTs(iso) {
-    try {
-      return new Date(iso).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
+      // Global unhandled-rejection → 401 redirect, else toast
+      window.addEventListener("unhandledrejection", (event) => {
+        const err = event.reason;
+        if (err?.status === 401) {
+          window.location.href = "login.html";
+          return;
+        }
+        showToast(err?.message || "An unexpected error occurred.", "error");
       });
-    } catch { return iso || '—'; }
-  }
 
-  // ── Helper: inject lead tabs after waveform data loads ────────────────────
-  function buildLeadTabs(leads) {
-    const container = document.getElementById('lead-tabs');
-    if (!container || !leads) return;
-    leads.forEach(label => {
-      const btn = document.createElement('button');
-      btn.className  = 'lead-tab';
-      btn.dataset.lead = label;
-      btn.textContent  = label;
-      // Clicking a specific tab filters to a single lead
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.lead-tab').forEach(t => t.classList.remove('active'));
-        btn.classList.add('active');
-        // Re-render with single lead (simple: just focus on that lead)
-        // Full lead-filter re-render is a Sprint 4 enhancement; for now, noop.
-      });
-      container.appendChild(btn);
-    });
-  }
+      // ── Read prediction ID from URL ────────────────────────────────────────────
+      const predictionId = getQueryParam("prediction_id");
 
-  // ── Render diagnosis panel ────────────────────────────────────────────────
-  function renderDiagnosis(prediction) {
-    const diag = prediction.diagnosis;
+      if (!predictionId) {
+        // No ID in URL — nothing to show; go home
+        window.location.replace("dashboard.html");
+      }
 
-    // Primary label
-    const primaryEl = document.getElementById('primary-label');
-    if (primaryEl) primaryEl.textContent = diag.primary_label;
+      // ── Helper: format ISO timestamp to locale date/time string ───────────────
+      function fmtTs(iso) {
+        try {
+          return new Date(iso).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+        } catch {
+          return iso || "—";
+        }
+      }
 
-    // Confidence bar
-    const pct = (diag.confidence * 100).toFixed(1);
-    const fill = document.getElementById('confidence-bar-fill');
-    if (fill) fill.style.width = `${pct}%`;
-    const pctEl = document.getElementById('confidence');
-    if (pctEl) pctEl.textContent = `${pct}%`;
+      // ── Helper: inject lead tabs after waveform data loads ────────────────────
+      function buildLeadTabs(leads) {
+        const container = document.getElementById("lead-tabs");
+        if (!container || !leads) return;
+        leads.forEach((label) => {
+          const btn = document.createElement("button");
+          btn.className = "lead-tab";
+          btn.dataset.lead = label;
+          btn.textContent = label;
+          // Clicking a specific tab filters to a single lead
+          btn.addEventListener("click", () => {
+            container
+              .querySelectorAll(".lead-tab")
+              .forEach((t) => t.classList.remove("active"));
+            btn.classList.add("active");
+            // Re-render with single lead (simple: just focus on that lead)
+            // Full lead-filter re-render is a Sprint 4 enhancement; for now, noop.
+          });
+          container.appendChild(btn);
+        });
+      }
 
-    // Secondary labels
-    const sec = document.getElementById('secondary-labels');
-    if (sec) {
-      sec.innerHTML = '';   // clear skeletons
-      (diag.secondary_labels || []).forEach(({ label, confidence }) => {
-        const pctSec  = (confidence * 100).toFixed(1);
-        const row     = document.createElement('div');
-        row.className = 'secondary-label';
-        row.innerHTML = `
+      // ── Render diagnosis panel ────────────────────────────────────────────────
+      function renderDiagnosis(prediction) {
+        const diag = prediction.diagnosis;
+
+        // Primary label
+        const primaryEl = document.getElementById("primary-label");
+        if (primaryEl) primaryEl.textContent = diag.primary_label;
+
+        // Confidence bar
+        const pct = (diag.confidence * 100).toFixed(1);
+        const fill = document.getElementById("confidence-bar-fill");
+        if (fill) fill.style.width = `${pct}%`;
+        const pctEl = document.getElementById("confidence");
+        if (pctEl) pctEl.textContent = `${pct}%`;
+
+        // Secondary labels
+        const sec = document.getElementById("secondary-labels");
+        if (sec) {
+          sec.innerHTML = ""; // clear skeletons
+          (diag.secondary_labels || []).forEach(({ label, confidence }) => {
+            const pctSec = (confidence * 100).toFixed(1);
+            const row = document.createElement("div");
+            row.className = "secondary-label";
+            row.innerHTML = `
           <span class="secondary-label__name">${label}</span>
           <div class="secondary-label__bar-wrap">
             <div class="secondary-label__bar">
@@ -286,78 +381,77 @@
             </div>
             <span class="secondary-label__pct">${pctSec}%</span>
           </div>`;
-        sec.appendChild(row);
-      });
-    }
-  }
-
-  // ── Render metadata cells ─────────────────────────────────────────────────
-  function renderMeta(prediction) {
-    const set = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val ?? '—';
-    };
-
-    set('meta-prediction-id', prediction.prediction_id);
-    set('meta-patient-id',    prediction.patient_id || '—');
-    set('meta-timestamp',     fmtTs(prediction.timestamp));
-    set('meta-status',        prediction.status || '—');
-
-    const wf = prediction.waveform_data;
-    if (wf) {
-      set('meta-leads',    wf.leads?.length ?? '—');
-      set('meta-rate',     wf.sampling_rate ?? '—');
-      set('meta-duration', prediction.metadata?.duration_seconds ?? '—');
-
-      // Update waveform-meta pill
-      const metaEl = document.getElementById('waveform-meta');
-      if (metaEl) {
-        metaEl.textContent =
-          `${wf.leads?.length ?? '?'} leads · ${wf.sampling_rate ?? '?'} Hz · ` +
-          `${prediction.metadata?.duration_seconds ?? '?'} s`;
+            sec.appendChild(row);
+          });
+        }
       }
-    }
 
-    // "View Patient Record" link
-    if (prediction.patient_id) {
-      const a = document.getElementById('btn-view-patient');
-      if (a) a.href = `/patient.html?patient_id=${prediction.patient_id}`;
-    }
-  }
+      // ── Render metadata cells ─────────────────────────────────────────────────
+      function renderMeta(prediction) {
+        const set = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val ?? "—";
+        };
 
-  // ── Main async init ───────────────────────────────────────────────────────
-  (async () => {
-    try {
-      const prediction = await API.getPrediction(predictionId);
-      setState('currentPrediction', prediction);
+        set("meta-prediction-id", prediction.prediction_id);
+        set("meta-patient-id", prediction.patient_id || "—");
+        set("meta-timestamp", fmtTs(prediction.timestamp));
+        set("meta-status", prediction.status || "—");
 
-      // Remove waveform skeleton
-      const skel = document.getElementById('waveform-skeleton');
-      if (skel) skel.remove();
+        const wf = prediction.waveform_data;
+        if (wf) {
+          set("meta-leads", wf.leads?.length ?? "—");
+          set("meta-rate", wf.sampling_rate ?? "—");
+          set("meta-duration", prediction.metadata?.duration_seconds ?? "—");
 
-      // Render waveform
-      renderWaveform('waveform-container', prediction.waveform_data);
+          // Update waveform-meta pill
+          const metaEl = document.getElementById("waveform-meta");
+          if (metaEl) {
+            metaEl.textContent =
+              `${wf.leads?.length ?? "?"} leads · ${wf.sampling_rate ?? "?"} Hz · ` +
+              `${prediction.metadata?.duration_seconds ?? "?"} s`;
+          }
+        }
 
-      // Build lead tabs
-      buildLeadTabs(prediction.waveform_data?.leads);
+        // "View Patient Record" link
+        if (prediction.patient_id) {
+          const a = document.getElementById("btn-view-patient");
+          if (a) a.href = `/patient.html?patient_id=${prediction.patient_id}`;
+        }
+      }
 
-      // Render diagnosis panel
-      renderDiagnosis(prediction);
+      // ── Main async init ───────────────────────────────────────────────────────
+      (async () => {
+        try {
+          const prediction = await API.getPrediction(predictionId);
+          setState("currentPrediction", prediction);
 
-      // Render metadata
-      renderMeta(prediction);
+          // Remove waveform skeleton
+          const skel = document.getElementById("waveform-skeleton");
+          if (skel) skel.remove();
 
-    } catch (err) {
-      // Remove waveform skeleton on error too
-      const skel = document.getElementById('waveform-skeleton');
-      if (skel) skel.innerHTML =
-        '<div class="waveform-fallback"><span class="icon-warning">⚠</span><p>Failed to load waveform.</p></div>';
+          // Render waveform
+          renderWaveform("waveform-container", prediction.waveform_data);
 
-      showToast('Failed to load prediction results.', 'error');
-      console.error('[results] load error:', err);
-    }
-  })();
-</script>
+          // Build lead tabs
+          buildLeadTabs(prediction.waveform_data?.leads);
 
-</body>
+          // Render diagnosis panel
+          renderDiagnosis(prediction);
+
+          // Render metadata
+          renderMeta(prediction);
+        } catch (err) {
+          // Remove waveform skeleton on error too
+          const skel = document.getElementById("waveform-skeleton");
+          if (skel)
+            skel.innerHTML =
+              '<div class="waveform-fallback"><span class="icon-warning">⚠</span><p>Failed to load waveform.</p></div>';
+
+          showToast("Failed to load prediction results.", "error");
+          console.error("[results] load error:", err);
+        }
+      })();
+    </script>
+  </body>
 </html>

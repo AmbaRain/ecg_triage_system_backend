@@ -1,306 +1,543 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="View an individual patient's profile, full prediction history, and ECG waveform replay on ECG Triage.">
-  <title>Patient Record — ECG Triage</title>
-  <link rel="stylesheet" href="./css/styles.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="View an individual patient's profile, full prediction history, and ECG waveform replay on ECG Triage."
+    />
+    <title>Patient Record — ECG Triage</title>
+    <link rel="stylesheet" href="./css/styles.css" />
 
-  <!-- Auth guard -->
-  <script type="module">
-    import { requireAuth } from './js/auth.js';
-    if (!requireAuth()) throw new Error('Unauthenticated');
-  </script>
+    <!-- Auth guard -->
+    <script type="module">
+      import { requireAuth } from "./js/auth.js";
+      if (!requireAuth()) throw new Error("Unauthenticated");
+    </script>
 
-  <!-- Plotly (needed for waveform replay) -->
-  <script src="./vendor/plotly.min.js"></script>
-</head>
-<body>
+    <!-- Plotly (needed for waveform replay) -->
+    <script src="./vendor/plotly.min.js"></script>
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- Shared navigation -->
+      <div id="nav-container"></div>
 
-<div id="app-shell" class="app-shell">
-
-  <!-- Shared navigation -->
-  <div id="nav-container"></div>
-
-  <!-- Main content -->
-  <main class="content-area">
-    <div style="padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-6);max-width:1300px">
-
-      <!-- Breadcrumb -->
-      <div style="display:flex;align-items:center;gap:var(--space-3);font-size:0.875rem;color:var(--color-text-secondary)">
-        <a href="/patients.html" id="breadcrumb-patients" style="color:var(--color-text-secondary);text-decoration:none;transition:color var(--transition-fast)"
-           onmouseover="this.style.color='var(--color-text-primary)'"
-           onmouseout="this.style.color='var(--color-text-secondary)'">
-          Patients
-        </a>
-        <span aria-hidden="true">›</span>
-        <span id="breadcrumb-patient-name">
-          <span class="skeleton skeleton--text" style="width:100px;display:inline-block"></span>
-        </span>
-      </div>
-
-      <!-- ── Patient profile header ──────────────────────────────────────── -->
-      <div class="patient-profile-header" id="patient-profile-header">
-
-        <!-- Avatar -->
-        <div class="patient-profile-header__avatar skeleton" id="profile-avatar" aria-hidden="true"></div>
-
-        <!-- Details -->
-        <div class="patient-profile-header__details">
-          <h1 class="patient-profile-header__name" id="profile-name">
-            <span class="skeleton skeleton--heading" style="display:block;width:220px"></span>
-          </h1>
-          <div class="patient-profile-header__fields" id="profile-fields">
-            <!-- Injected by JS -->
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="patient-profile-header__actions">
-          <a href="/upload.html" class="btn btn--primary btn--sm" id="btn-new-ecg-for-patient">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-            </svg>
-            New ECG
-          </a>
-          <a href="/patients.html" class="btn btn--ghost btn--sm">← Back to list</a>
-        </div>
-      </div>
-
-      <!-- ── Stats row ────────────────────────────────────────────────────── -->
-      <div class="stat-grid" id="patient-stats-grid" aria-label="Patient statistics">
-
-        <div class="stat-card">
-          <div class="stat-card__label">Total Predictions</div>
-          <div class="stat-card__value" id="stat-total-predictions">
-            <span class="skeleton skeleton--text" style="width:40px;display:inline-block"></span>
-          </div>
-          <div class="stat-card__meta">ECG analyses</div>
-          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__label">Last Prediction</div>
-          <div class="stat-card__value" id="stat-last-prediction" style="font-size:1rem;line-height:1.4">
-            <span class="skeleton skeleton--text" style="width:80px;display:inline-block"></span>
-          </div>
-          <div class="stat-card__meta">Most recent ECG</div>
-          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"/>
-          </svg>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-card__label">Patient ID</div>
-          <div class="stat-card__value" id="stat-patient-id" style="font-size:1.1rem;font-family:var(--font-base)">
-            <span class="skeleton skeleton--text" style="width:60px;display:inline-block"></span>
-          </div>
-          <div class="stat-card__meta">System identifier</div>
-          <svg class="stat-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"/>
-          </svg>
-        </div>
-
-      </div>
-
-      <!-- ── Main two-column layout ────────────────────────────────────────── -->
-      <div class="patient-detail-layout">
-
-        <!-- ── Left column: prediction history + waveform replay ─────────── -->
-        <div style="display:flex;flex-direction:column;gap:var(--space-6)">
-
-          <!-- Prediction history card -->
-          <section class="card" style="padding:0;overflow:hidden" aria-label="Prediction history">
-            <div class="card__header" style="padding:var(--space-5) var(--space-6)">
-              <span class="card__title">Prediction History</span>
-              <span id="predictions-count-badge" class="badge badge--neutral">—</span>
-            </div>
-
-            <!-- Loading skeletons -->
-            <div id="predictions-loading" class="prediction-history" aria-live="polite">
-              <div class="prediction-history-item">
-                <div class="prediction-history-item__dot"></div>
-                <div class="prediction-history-item__body">
-                  <div class="skeleton skeleton--text" style="width:160px"></div>
-                  <div class="skeleton skeleton--text" style="width:100px;height:0.75em"></div>
-                </div>
-                <div class="skeleton skeleton--text" style="width:36px"></div>
-              </div>
-            </div>
-
-            <!-- Populated history -->
-            <div id="predictions-list" class="prediction-history" style="display:none"></div>
-
-            <!-- Empty state -->
-            <div id="predictions-empty" style="display:none;padding:var(--space-8);text-align:center;color:var(--color-text-secondary)">
-              <p>No predictions on record for this patient.</p>
-              <a href="/upload.html" class="btn btn--ghost btn--sm" style="margin-top:var(--space-3)">Upload ECG →</a>
-            </div>
-          </section>
-
-          <!-- Waveform replay panel -->
-          <section class="waveform-replay-panel" id="waveform-replay-panel" aria-label="ECG waveform replay">
-            <div class="waveform-replay-panel__header">
-              <h2 class="waveform-replay-panel__title">ECG Waveform Replay</h2>
-              <div class="waveform-replay-panel__selector">
-                <span>Showing:</span>
-                <span id="waveform-replay-label" class="badge badge--neutral">Select a prediction</span>
-                <a id="btn-view-full-results" href="#" class="btn btn--ghost btn--sm" style="display:none">
-                  Full Results →
-                </a>
-              </div>
-            </div>
-
-            <!-- Plotly container -->
-            <div id="waveform-container" class="waveform-container" style="min-height:280px">
-              <div class="waveform-fallback" id="waveform-placeholder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                     stroke="currentColor" stroke-width="1.5" width="40" height="40"
-                     style="opacity:0.25;margin-bottom:var(--space-3)" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25"/>
-                </svg>
-                <p style="opacity:0.5;font-size:0.875rem">Click a prediction in the history to replay its waveform.</p>
-              </div>
-            </div>
-          </section>
-
-        </div><!-- /left column -->
-
-        <!-- ── Right column: patient info sidebar ──────────────────────────── -->
-        <aside class="patient-info-sidebar">
-
-          <!-- Patient info card -->
-          <div class="card">
-            <div class="card__title">Patient Information</div>
-
-            <div id="info-rows" style="margin-top:var(--space-4);display:flex;flex-direction:column;gap:0">
-              <!-- Skeleton rows -->
-              <div class="info-row">
-                <div class="info-row__label skeleton skeleton--text" style="width:60px;height:0.6em"></div>
-                <div class="info-row__value skeleton skeleton--text" style="width:120px"></div>
-              </div>
-              <div class="info-row">
-                <div class="info-row__label skeleton skeleton--text" style="width:50px;height:0.6em"></div>
-                <div class="info-row__value skeleton skeleton--text" style="width:80px"></div>
-              </div>
-              <div class="info-row">
-                <div class="info-row__label skeleton skeleton--text" style="width:80px;height:0.6em"></div>
-                <div class="info-row__value skeleton skeleton--text" style="width:60px"></div>
-              </div>
-            </div>
+      <!-- Main content -->
+      <main class="content-area">
+        <div
+          style="
+            padding: var(--space-6);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-6);
+            max-width: 1300px;
+          "
+        >
+          <!-- Breadcrumb -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: var(--space-3);
+              font-size: 0.875rem;
+              color: var(--color-text-secondary);
+            "
+          >
+            <a
+              href="/patients.html"
+              id="breadcrumb-patients"
+              style="
+                color: var(--color-text-secondary);
+                text-decoration: none;
+                transition: color var(--transition-fast);
+              "
+              onmouseover="this.style.color = 'var(--color-text-primary)'"
+              onmouseout="this.style.color = 'var(--color-text-secondary)'"
+            >
+              Patients
+            </a>
+            <span aria-hidden="true">›</span>
+            <span id="breadcrumb-patient-name">
+              <span
+                class="skeleton skeleton--text"
+                style="width: 100px; display: inline-block"
+              ></span>
+            </span>
           </div>
 
-          <!-- Latest diagnosis card -->
-          <div class="card" id="latest-diagnosis-card">
-            <div class="card__title">Latest Diagnosis</div>
-            <div style="margin-top:var(--space-4);display:flex;flex-direction:column;gap:var(--space-3)">
+          <!-- ── Patient profile header ──────────────────────────────────────── -->
+          <div class="patient-profile-header" id="patient-profile-header">
+            <!-- Avatar -->
+            <div
+              class="patient-profile-header__avatar skeleton"
+              id="profile-avatar"
+              aria-hidden="true"
+            ></div>
 
-              <div id="latest-label" style="font-size:1.25rem;font-weight:700;color:var(--color-text-primary)">
-                <span class="skeleton skeleton--heading" style="display:block;width:80%"></span>
+            <!-- Details -->
+            <div class="patient-profile-header__details">
+              <h1 class="patient-profile-header__name" id="profile-name">
+                <span
+                  class="skeleton skeleton--heading"
+                  style="display: block; width: 220px"
+                ></span>
+              </h1>
+              <div class="patient-profile-header__fields" id="profile-fields">
+                <!-- Injected by JS -->
               </div>
+            </div>
 
-              <div style="display:flex;align-items:center;gap:var(--space-3)">
-                <div class="confidence-bar" style="flex:1">
-                  <div class="confidence-bar__fill" id="latest-confidence-fill" style="width:0%"></div>
-                </div>
-                <span id="latest-confidence-pct" class="confidence-pct">—</span>
-              </div>
-
+            <!-- Actions -->
+            <div class="patient-profile-header__actions">
               <a
-                id="btn-view-latest-results"
-                href="#"
-                class="btn btn--ghost btn--sm btn--full"
-                style="display:none"
+                href="/upload.html"
+                class="btn btn--primary btn--sm"
+                id="btn-new-ecg-for-patient"
               >
-                View Full Results →
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  width="16"
+                  height="16"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+                  />
+                </svg>
+                New ECG
               </a>
+              <a href="/patients.html" class="btn btn--ghost btn--sm"
+                >← Back to list</a
+              >
             </div>
           </div>
 
-        </aside><!-- /right column -->
+          <!-- ── Stats row ────────────────────────────────────────────────────── -->
+          <div
+            class="stat-grid"
+            id="patient-stats-grid"
+            aria-label="Patient statistics"
+          >
+            <div class="stat-card">
+              <div class="stat-card__label">Total Predictions</div>
+              <div class="stat-card__value" id="stat-total-predictions">
+                <span
+                  class="skeleton skeleton--text"
+                  style="width: 40px; display: inline-block"
+                ></span>
+              </div>
+              <div class="stat-card__meta">ECG analyses</div>
+              <svg
+                class="stat-card__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
 
-      </div><!-- /.patient-detail-layout -->
+            <div class="stat-card">
+              <div class="stat-card__label">Last Prediction</div>
+              <div
+                class="stat-card__value"
+                id="stat-last-prediction"
+                style="font-size: 1rem; line-height: 1.4"
+              >
+                <span
+                  class="skeleton skeleton--text"
+                  style="width: 80px; display: inline-block"
+                ></span>
+              </div>
+              <div class="stat-card__meta">Most recent ECG</div>
+              <svg
+                class="stat-card__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"
+                />
+              </svg>
+            </div>
 
-    </div><!-- /content inner -->
-  </main>
-</div><!-- /#app-shell -->
+            <div class="stat-card">
+              <div class="stat-card__label">Patient ID</div>
+              <div
+                class="stat-card__value"
+                id="stat-patient-id"
+                style="font-size: 1.1rem; font-family: var(--font-base)"
+              >
+                <span
+                  class="skeleton skeleton--text"
+                  style="width: 60px; display: inline-block"
+                ></span>
+              </div>
+              <div class="stat-card__meta">System identifier</div>
+              <svg
+                class="stat-card__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z"
+                />
+              </svg>
+            </div>
+          </div>
 
-<script type="module">
-  import { injectNav }          from './js/components/nav.js';
-  import { showToast }          from './js/components/toast.js';
-  import { getQueryParam }      from './js/router.js';
-  import { API }                from './js/api-adapter.js';
-  import { setState }           from './js/state.js';
-  import { renderWaveform, destroyWaveform } from './js/waveform.js';
+          <!-- ── Main two-column layout ────────────────────────────────────────── -->
+          <div class="patient-detail-layout">
+            <!-- ── Left column: prediction history + waveform replay ─────────── -->
+            <div
+              style="display: flex; flex-direction: column; gap: var(--space-6)"
+            >
+              <!-- Prediction history card -->
+              <section
+                class="card"
+                style="padding: 0; overflow: hidden"
+                aria-label="Prediction history"
+              >
+                <div
+                  class="card__header"
+                  style="padding: var(--space-5) var(--space-6)"
+                >
+                  <span class="card__title">Prediction History</span>
+                  <span
+                    id="predictions-count-badge"
+                    class="badge badge--neutral"
+                    >—</span
+                  >
+                </div>
 
-  injectNav(document.getElementById('nav-container'));
+                <!-- Loading skeletons -->
+                <div
+                  id="predictions-loading"
+                  class="prediction-history"
+                  aria-live="polite"
+                >
+                  <div class="prediction-history-item">
+                    <div class="prediction-history-item__dot"></div>
+                    <div class="prediction-history-item__body">
+                      <div
+                        class="skeleton skeleton--text"
+                        style="width: 160px"
+                      ></div>
+                      <div
+                        class="skeleton skeleton--text"
+                        style="width: 100px; height: 0.75em"
+                      ></div>
+                    </div>
+                    <div
+                      class="skeleton skeleton--text"
+                      style="width: 36px"
+                    ></div>
+                  </div>
+                </div>
 
-  window.addEventListener('unhandledrejection', event => {
-    const err = event.reason;
-    if (err?.status === 401) { window.location.href = '/login.html'; return; }
-    showToast(err?.message || 'An unexpected error occurred.', 'error');
-  });
+                <!-- Populated history -->
+                <div
+                  id="predictions-list"
+                  class="prediction-history"
+                  style="display: none"
+                ></div>
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+                <!-- Empty state -->
+                <div
+                  id="predictions-empty"
+                  style="
+                    display: none;
+                    padding: var(--space-8);
+                    text-align: center;
+                    color: var(--color-text-secondary);
+                  "
+                >
+                  <p>No predictions on record for this patient.</p>
+                  <a
+                    href="/upload.html"
+                    class="btn btn--ghost btn--sm"
+                    style="margin-top: var(--space-3)"
+                    >Upload ECG →</a
+                  >
+                </div>
+              </section>
 
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    try {
-      return new Date(iso).toLocaleDateString(undefined, {
-        day: '2-digit', month: 'short', year: 'numeric',
+              <!-- Waveform replay panel -->
+              <section
+                class="waveform-replay-panel"
+                id="waveform-replay-panel"
+                aria-label="ECG waveform replay"
+              >
+                <div class="waveform-replay-panel__header">
+                  <h2 class="waveform-replay-panel__title">
+                    ECG Waveform Replay
+                  </h2>
+                  <div class="waveform-replay-panel__selector">
+                    <span>Showing:</span>
+                    <span
+                      id="waveform-replay-label"
+                      class="badge badge--neutral"
+                      >Select a prediction</span
+                    >
+                    <a
+                      id="btn-view-full-results"
+                      href="#"
+                      class="btn btn--ghost btn--sm"
+                      style="display: none"
+                    >
+                      Full Results →
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Plotly container -->
+                <div
+                  id="waveform-container"
+                  class="waveform-container"
+                  style="min-height: 280px"
+                >
+                  <div class="waveform-fallback" id="waveform-placeholder">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      width="40"
+                      height="40"
+                      style="opacity: 0.25; margin-bottom: var(--space-3)"
+                      aria-hidden="true"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25"
+                      />
+                    </svg>
+                    <p style="opacity: 0.5; font-size: 0.875rem">
+                      Click a prediction in the history to replay its waveform.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <!-- /left column -->
+
+            <!-- ── Right column: patient info sidebar ──────────────────────────── -->
+            <aside class="patient-info-sidebar">
+              <!-- Patient info card -->
+              <div class="card">
+                <div class="card__title">Patient Information</div>
+
+                <div
+                  id="info-rows"
+                  style="
+                    margin-top: var(--space-4);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0;
+                  "
+                >
+                  <!-- Skeleton rows -->
+                  <div class="info-row">
+                    <div
+                      class="info-row__label skeleton skeleton--text"
+                      style="width: 60px; height: 0.6em"
+                    ></div>
+                    <div
+                      class="info-row__value skeleton skeleton--text"
+                      style="width: 120px"
+                    ></div>
+                  </div>
+                  <div class="info-row">
+                    <div
+                      class="info-row__label skeleton skeleton--text"
+                      style="width: 50px; height: 0.6em"
+                    ></div>
+                    <div
+                      class="info-row__value skeleton skeleton--text"
+                      style="width: 80px"
+                    ></div>
+                  </div>
+                  <div class="info-row">
+                    <div
+                      class="info-row__label skeleton skeleton--text"
+                      style="width: 80px; height: 0.6em"
+                    ></div>
+                    <div
+                      class="info-row__value skeleton skeleton--text"
+                      style="width: 60px"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Latest diagnosis card -->
+              <div class="card" id="latest-diagnosis-card">
+                <div class="card__title">Latest Diagnosis</div>
+                <div
+                  style="
+                    margin-top: var(--space-4);
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--space-3);
+                  "
+                >
+                  <div
+                    id="latest-label"
+                    style="
+                      font-size: 1.25rem;
+                      font-weight: 700;
+                      color: var(--color-text-primary);
+                    "
+                  >
+                    <span
+                      class="skeleton skeleton--heading"
+                      style="display: block; width: 80%"
+                    ></span>
+                  </div>
+
+                  <div
+                    style="
+                      display: flex;
+                      align-items: center;
+                      gap: var(--space-3);
+                    "
+                  >
+                    <div class="confidence-bar" style="flex: 1">
+                      <div
+                        class="confidence-bar__fill"
+                        id="latest-confidence-fill"
+                        style="width: 0%"
+                      ></div>
+                    </div>
+                    <span id="latest-confidence-pct" class="confidence-pct"
+                      >—</span
+                    >
+                  </div>
+
+                  <a
+                    id="btn-view-latest-results"
+                    href="#"
+                    class="btn btn--ghost btn--sm btn--full"
+                    style="display: none"
+                  >
+                    View Full Results →
+                  </a>
+                </div>
+              </div>
+            </aside>
+            <!-- /right column -->
+          </div>
+          <!-- /.patient-detail-layout -->
+        </div>
+        <!-- /content inner -->
+      </main>
+    </div>
+    <!-- /#app-shell -->
+
+    <script type="module">
+      import { injectNav } from "./js/components/nav.js";
+      import { showToast } from "./js/components/toast.js";
+      import { getQueryParam } from "./js/router.js";
+      import { API } from "./js/api-adapter.js";
+      import { setState } from "./js/state.js";
+      import { renderWaveform, destroyWaveform } from "./js/waveform.js";
+
+      injectNav(document.getElementById("nav-container"));
+
+      window.addEventListener("unhandledrejection", (event) => {
+        const err = event.reason;
+        if (err?.status === 401) {
+          window.location.href = "login.html";
+          return;
+        }
+        showToast(err?.message || "An unexpected error occurred.", "error");
       });
-    } catch { return iso; }
-  }
 
-  function fmtTs(iso) {
-    if (!iso) return '—';
-    try {
-      return new Date(iso).toLocaleString(undefined, {
-        dateStyle: 'medium', timeStyle: 'short',
-      });
-    } catch { return iso; }
-  }
+      // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  function getInitials(name) {
-    const parts = (name || '?').trim().split(/\s+/);
-    return parts.length === 1
-      ? parts[0][0].toUpperCase()
-      : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
+      function fmtDate(iso) {
+        if (!iso) return "—";
+        try {
+          return new Date(iso).toLocaleDateString(undefined, {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        } catch {
+          return iso;
+        }
+      }
 
-  // ── Read patient_id from URL ─────────────────────────────────────────────────
-  const patientId = getQueryParam('patient_id');
-  if (!patientId) { window.location.replace('/patients.html'); }
+      function fmtTs(iso) {
+        if (!iso) return "—";
+        try {
+          return new Date(iso).toLocaleString(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+        } catch {
+          return iso;
+        }
+      }
 
-  // ── Render patient profile header ────────────────────────────────────────────
-  function renderProfile(patient) {
-    const initials = getInitials(patient.full_name);
+      function getInitials(name) {
+        const parts = (name || "?").trim().split(/\s+/);
+        return parts.length === 1
+          ? parts[0][0].toUpperCase()
+          : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
 
-    // Avatar
-    const avatarEl = document.getElementById('profile-avatar');
-    if (avatarEl) {
-      avatarEl.classList.remove('skeleton');
-      avatarEl.textContent = initials;
-    }
+      // ── Read patient_id from URL ─────────────────────────────────────────────────
+      const patientId = getQueryParam("patient_id");
+      if (!patientId) {
+        window.location.replace("/patients.html");
+      }
 
-    // Name
-    const nameEl = document.getElementById('profile-name');
-    if (nameEl) nameEl.textContent = patient.full_name;
+      // ── Render patient profile header ────────────────────────────────────────────
+      function renderProfile(patient) {
+        const initials = getInitials(patient.full_name);
 
-    // Breadcrumb
-    const bcName = document.getElementById('breadcrumb-patient-name');
-    if (bcName) bcName.textContent = patient.full_name;
+        // Avatar
+        const avatarEl = document.getElementById("profile-avatar");
+        if (avatarEl) {
+          avatarEl.classList.remove("skeleton");
+          avatarEl.textContent = initials;
+        }
 
-    // Fields
-    const fields = document.getElementById('profile-fields');
-    if (fields) {
-      fields.innerHTML = `
+        // Name
+        const nameEl = document.getElementById("profile-name");
+        if (nameEl) nameEl.textContent = patient.full_name;
+
+        // Breadcrumb
+        const bcName = document.getElementById("breadcrumb-patient-name");
+        if (bcName) bcName.textContent = patient.full_name;
+
+        // Fields
+        const fields = document.getElementById("profile-fields");
+        if (fields) {
+          fields.innerHTML = `
         <div class="patient-field">
           <span class="patient-field__label">Patient ID</span>
           <span class="patient-field__value label-mono">${patient.patient_id}</span>
@@ -314,17 +551,20 @@
           <span class="patient-field__value">${fmtDate(patient.last_prediction_date)}</span>
         </div>
       `;
-    }
+        }
 
-    // Stats
-    const setId = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
-    setId('stat-patient-id', patient.patient_id);
-    setId('stat-last-prediction', fmtDate(patient.last_prediction_date));
+        // Stats
+        const setId = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val ?? "—";
+        };
+        setId("stat-patient-id", patient.patient_id);
+        setId("stat-last-prediction", fmtDate(patient.last_prediction_date));
 
-    // Info sidebar
-    const infoRows = document.getElementById('info-rows');
-    if (infoRows) {
-      infoRows.innerHTML = `
+        // Info sidebar
+        const infoRows = document.getElementById("info-rows");
+        if (infoRows) {
+          infoRows.innerHTML = `
         <div class="info-row">
           <div class="info-row__label">Full Name</div>
           <div class="info-row__value">${patient.full_name}</div>
@@ -342,50 +582,52 @@
           <div class="info-row__value">${fmtDate(patient.last_prediction_date)}</div>
         </div>
       `;
-    }
+        }
 
-    setState('currentPatient', patient);
-  }
+        setState("currentPatient", patient);
+      }
 
-  // ── Render prediction history ────────────────────────────────────────────────
-  function renderHistory(predictions) {
-    const list    = document.getElementById('predictions-list');
-    const loading = document.getElementById('predictions-loading');
-    const empty   = document.getElementById('predictions-empty');
-    const badge   = document.getElementById('predictions-count-badge');
-    const statTot = document.getElementById('stat-total-predictions');
+      // ── Render prediction history ────────────────────────────────────────────────
+      function renderHistory(predictions) {
+        const list = document.getElementById("predictions-list");
+        const loading = document.getElementById("predictions-loading");
+        const empty = document.getElementById("predictions-empty");
+        const badge = document.getElementById("predictions-count-badge");
+        const statTot = document.getElementById("stat-total-predictions");
 
-    if (badge)   badge.textContent = String(predictions.length);
-    if (statTot) statTot.textContent = String(predictions.length);
+        if (badge) badge.textContent = String(predictions.length);
+        if (statTot) statTot.textContent = String(predictions.length);
 
-    if (loading) loading.style.display = 'none';
+        if (loading) loading.style.display = "none";
 
-    if (!predictions.length) {
-      if (empty) empty.style.display = '';
-      return;
-    }
+        if (!predictions.length) {
+          if (empty) empty.style.display = "";
+          return;
+        }
 
-    if (list) list.style.display = '';
+        if (list) list.style.display = "";
 
-    // Latest prediction → sidebar
-    const latest = predictions[0];
-    renderLatestDiagnosis(latest);
+        // Latest prediction → sidebar
+        const latest = predictions[0];
+        renderLatestDiagnosis(latest);
 
-    predictions.forEach(pred => {
-      const item = document.createElement('div');
-      item.className = 'prediction-history-item';
-      item.dataset.predictionId = pred.prediction_id;
-      item.setAttribute('role', 'button');
-      item.setAttribute('tabindex', '0');
-      item.setAttribute('aria-label',
-        `Prediction ${pred.prediction_id}: ${pred.diagnosis?.primary_label || 'Unknown'}, ${fmtTs(pred.timestamp)}`);
+        predictions.forEach((pred) => {
+          const item = document.createElement("div");
+          item.className = "prediction-history-item";
+          item.dataset.predictionId = pred.prediction_id;
+          item.setAttribute("role", "button");
+          item.setAttribute("tabindex", "0");
+          item.setAttribute(
+            "aria-label",
+            `Prediction ${pred.prediction_id}: ${pred.diagnosis?.primary_label || "Unknown"}, ${fmtTs(pred.timestamp)}`,
+          );
 
-      const pct = ((pred.diagnosis?.confidence ?? 0) * 100).toFixed(1);
+          const pct = ((pred.diagnosis?.confidence ?? 0) * 100).toFixed(1);
 
-      item.innerHTML = `
+          item.innerHTML = `
         <div class="prediction-history-item__dot"></div>
         <div class="prediction-history-item__body">
-          <div class="prediction-history-item__label">${pred.diagnosis?.primary_label || 'Unknown'}</div>
+          <div class="prediction-history-item__label">${pred.diagnosis?.primary_label || "Unknown"}</div>
           <div class="prediction-history-item__meta">
             ${fmtTs(pred.timestamp)}
             <span class="label-mono" style="margin-left:var(--space-2);font-size:0.7rem">${pred.prediction_id}</span>
@@ -394,84 +636,86 @@
         <span class="prediction-history-item__confidence">${pct}%</span>
       `;
 
-      // Click → replay waveform
-      item.addEventListener('click', () => replayPrediction(pred, item));
-      item.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') replayPrediction(pred, item);
-      });
+          // Click → replay waveform
+          item.addEventListener("click", () => replayPrediction(pred, item));
+          item.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ")
+              replayPrediction(pred, item);
+          });
 
-      list.appendChild(item);
-    });
-  }
+          list.appendChild(item);
+        });
+      }
 
-  // ── Waveform replay ──────────────────────────────────────────────────────────
-  let _activeItem = null;
+      // ── Waveform replay ──────────────────────────────────────────────────────────
+      let _activeItem = null;
 
-  function replayPrediction(pred, itemEl) {
-    // Deactivate previous row
-    if (_activeItem) _activeItem.style.background = '';
-    _activeItem = itemEl;
-    itemEl.style.background = 'var(--color-accent-muted)';
+      function replayPrediction(pred, itemEl) {
+        // Deactivate previous row
+        if (_activeItem) _activeItem.style.background = "";
+        _activeItem = itemEl;
+        itemEl.style.background = "var(--color-accent-muted)";
 
-    // Update replay label
-    const label = document.getElementById('waveform-replay-label');
-    if (label) label.textContent = pred.diagnosis?.primary_label || pred.prediction_id;
+        // Update replay label
+        const label = document.getElementById("waveform-replay-label");
+        if (label)
+          label.textContent =
+            pred.diagnosis?.primary_label || pred.prediction_id;
 
-    // Show "Full Results" link
-    const fullLink = document.getElementById('btn-view-full-results');
-    if (fullLink) {
-      fullLink.href    = `/results.html?prediction_id=${encodeURIComponent(pred.prediction_id)}`;
-      fullLink.style.display = '';
-    }
+        // Show "Full Results" link
+        const fullLink = document.getElementById("btn-view-full-results");
+        if (fullLink) {
+          fullLink.href = `/results.html?prediction_id=${encodeURIComponent(pred.prediction_id)}`;
+          fullLink.style.display = "";
+        }
 
-    // Remove placeholder
-    const placeholder = document.getElementById('waveform-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
+        // Remove placeholder
+        const placeholder = document.getElementById("waveform-placeholder");
+        if (placeholder) placeholder.style.display = "none";
 
-    // Destroy existing plot then re-render
-    destroyWaveform('waveform-container');
-    renderWaveform('waveform-container', pred.waveform_data);
-  }
+        // Destroy existing plot then re-render
+        destroyWaveform("waveform-container");
+        renderWaveform("waveform-container", pred.waveform_data);
+      }
 
-  // ── Latest diagnosis sidebar ─────────────────────────────────────────────────
-  function renderLatestDiagnosis(pred) {
-    const labelEl = document.getElementById('latest-label');
-    const fillEl  = document.getElementById('latest-confidence-fill');
-    const pctEl   = document.getElementById('latest-confidence-pct');
-    const linkEl  = document.getElementById('btn-view-latest-results');
+      // ── Latest diagnosis sidebar ─────────────────────────────────────────────────
+      function renderLatestDiagnosis(pred) {
+        const labelEl = document.getElementById("latest-label");
+        const fillEl = document.getElementById("latest-confidence-fill");
+        const pctEl = document.getElementById("latest-confidence-pct");
+        const linkEl = document.getElementById("btn-view-latest-results");
 
-    if (labelEl) labelEl.textContent = pred.diagnosis?.primary_label || '—';
+        if (labelEl) labelEl.textContent = pred.diagnosis?.primary_label || "—";
 
-    const pct = ((pred.diagnosis?.confidence ?? 0) * 100).toFixed(1);
-    if (fillEl) fillEl.style.width = `${pct}%`;
-    if (pctEl)  pctEl.textContent  = `${pct}%`;
+        const pct = ((pred.diagnosis?.confidence ?? 0) * 100).toFixed(1);
+        if (fillEl) fillEl.style.width = `${pct}%`;
+        if (pctEl) pctEl.textContent = `${pct}%`;
 
-    if (linkEl) {
-      linkEl.href         = `/results.html?prediction_id=${encodeURIComponent(pred.prediction_id)}`;
-      linkEl.style.display = '';
-    }
-  }
+        if (linkEl) {
+          linkEl.href = `/results.html?prediction_id=${encodeURIComponent(pred.prediction_id)}`;
+          linkEl.style.display = "";
+        }
+      }
 
-  // ── Main async init ───────────────────────────────────────────────────────────
-  (async () => {
-    try {
-      const [patient, { predictions }] = await Promise.all([
-        API.getPatient(patientId),
-        API.getPatientPredictions(patientId),
-      ]);
+      // ── Main async init ───────────────────────────────────────────────────────────
+      (async () => {
+        try {
+          const [patient, { predictions }] = await Promise.all([
+            API.getPatient(patientId),
+            API.getPatientPredictions(patientId),
+          ]);
 
-      renderProfile(patient);
-      renderHistory(predictions);
-
-    } catch (err) {
-      showToast('Failed to load patient record.', 'error');
-      const loading = document.getElementById('predictions-loading');
-      if (loading) loading.innerHTML =
-        '<div style="padding:var(--space-6);color:var(--color-danger)">Failed to load prediction history.</div>';
-      console.error('[patient.html] load error:', err);
-    }
-  })();
-</script>
-
-</body>
+          renderProfile(patient);
+          renderHistory(predictions);
+        } catch (err) {
+          showToast("Failed to load patient record.", "error");
+          const loading = document.getElementById("predictions-loading");
+          if (loading)
+            loading.innerHTML =
+              '<div style="padding:var(--space-6);color:var(--color-danger)">Failed to load prediction history.</div>';
+          console.error("[patient.html] load error:", err);
+        }
+      })();
+    </script>
+  </body>
 </html>

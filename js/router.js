@@ -11,7 +11,6 @@
  * Sprint 2, Step 11 of 25.
  */
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Query parameter reads
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,7 +46,6 @@ export function getAllQueryParams() {
   return params;
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // URL construction
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,11 +59,11 @@ export function getAllQueryParams() {
  * @returns {string}  Fully-qualified URL string.
  *
  * @example
- * buildUrl('/results.html', { prediction_id: 'pred_001' });
- * // → 'http://localhost:5173/results.html?prediction_id=pred_001'
+ * buildUrl('results.html', { prediction_id: 'pred_001' });
+ * // → 'http://localhost:5173/ecg_triage_system_backend/results.html?prediction_id=pred_001'
  */
 export function buildUrl(base, params = {}) {
-  const url = new URL(base, window.location.origin);
+  const url = new URL(base, window.location.href);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== null && v !== undefined) url.searchParams.set(k, String(v));
   });
@@ -76,7 +74,7 @@ export function buildUrl(base, params = {}) {
  * Navigate to a page with query params, replacing the current history entry.
  * Use for redirects (e.g. post-login) where pressing Back should skip the page.
  *
- * @param {string} path    e.g. '/dashboard.html'
+ * @param {string} path    e.g. 'dashboard.html'
  * @param {Record<string, string|number>} [params]
  */
 export function redirectTo(path, params = {}) {
@@ -94,7 +92,6 @@ export function navigateTo(path, params = {}) {
   window.location.href = buildUrl(path, params);
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Page context helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,5 +106,5 @@ export function navigateTo(path, params = {}) {
  * currentPage(); // → 'results.html'
  */
 export function currentPage() {
-  return window.location.pathname.split('/').pop() || 'index.html';
+  return window.location.pathname.split("/").pop() || "index.html";
 }

@@ -11,9 +11,8 @@
  * Sprint 2, Step 9 of 25.
  */
 
-import { CONFIG } from './config.js';
-import { API }    from './api-adapter.js';
-
+import { CONFIG } from "./config.js";
+import { API } from "./api-adapter.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Token & user reads (synchronous)
@@ -51,7 +50,6 @@ export function isAuthenticated() {
   return !!getAuthToken();
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Role helpers
 // See Section 8 of the blueprint for the single-role-system rationale.
@@ -63,7 +61,7 @@ export function isAuthenticated() {
  */
 export function getCurrentUserRole() {
   const user = getCurrentUser();
-  return user?.role || 'clinician';
+  return user?.role || "clinician";
 }
 
 /**
@@ -79,7 +77,6 @@ export function hasRole(_requiredRole) {
   // Future: return getCurrentUserRole() === _requiredRole;
   return true;
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth actions (async)
@@ -103,7 +100,7 @@ export async function login(username, password) {
 export const redirector = {
   navigate(url) {
     window.location.href = url;
-  }
+  },
 };
 
 /**
@@ -120,10 +117,9 @@ export async function logout() {
     // ⚠️ Always clear, even on network error — never leave a stale token.
     sessionStorage.removeItem(CONFIG.AUTH_TOKEN_KEY);
     sessionStorage.removeItem(CONFIG.AUTH_USER_KEY);
-    redirector.navigate('/login.html');
+    redirector.navigate("login.html");
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route protection
@@ -144,7 +140,7 @@ export async function logout() {
  */
 export function requireAuth() {
   if (!isAuthenticated()) {
-    redirector.navigate('/login.html');
+    redirector.navigate("login.html");
     return false;
   }
   return true;
@@ -159,7 +155,7 @@ export function requireAuth() {
  */
 export function redirectIfAuthenticated() {
   if (isAuthenticated()) {
-    redirector.navigate('/dashboard.html');
+    redirector.navigate("dashboard.html");
     return true;
   }
   return false;

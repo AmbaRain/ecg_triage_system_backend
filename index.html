@@ -1,17 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>ECG Triage</title>
-  <!-- Redirect to login or dashboard based on auth state -->
-  <script type="module">
-    import { isAuthenticated } from './js/auth.js';
-    window.location.replace(
-      isAuthenticated() ? '/dashboard.html' : '/login.html'
-    );
-  </script>
-</head>
-<body>
-  <!-- Intentionally blank — redirect fires before paint -->
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ECG Triage</title>
+    <!-- Redirect to login or dashboard based on auth state -->
+    <script type="module">
+      import { isAuthenticated } from "./js/auth.js";
+      window.location.replace(
+        isAuthenticated() ? "dashboard.html" : "login.html",
+      );
+    </script>
+  </head>
+  <body>
+    <!-- Intentionally blank — redirect fires before paint -->
+  </body>
 </html>
