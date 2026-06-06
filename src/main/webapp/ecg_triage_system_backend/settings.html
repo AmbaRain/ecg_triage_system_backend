@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Manage your ECG Triage account profile, notification preferences, alert confidence threshold, and display settings."
+    />
+    <title>Settings — ECG Triage</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+
+    <!-- Auth guard -->
+    <script type="module">
+      import { requireAuth } from "./js/auth.js";
+      if (!requireAuth()) throw new Error("Unauthenticated");
+    </script>
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- Shared navigation -->
+      <div id="nav-container"></div>
+
+      <!-- Main content -->
+      <main class="content-area" id="settings-main">
+        <div class="settings-page">
+          <div class="settings-page__header">
+            <h1 class="settings-page__title">Settings</h1>
+          </div>
+
+          <!-- Two-column layout -->
+          <div class="settings-layout">
+            <!-- ── Tab sidebar ─────────────────────────────────────── -->
+            <div
+              class="settings-tabs"
+              role="tablist"
+              aria-label="Settings categories"
+            >
+              <button
+                class="settings-tab"
+                id="tab-account"
+                data-tab="account"
+                role="tab"
+                aria-controls="panel-account"
+                aria-selected="true"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Account
+              </button>
+
+              <button
+                class="settings-tab"
+                id="tab-notifications"
+                data-tab="notifications"
+                role="tab"
+                aria-controls="panel-notifications"
+                aria-selected="false"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
+                  />
+                </svg>
+                Notifications
+              </button>
+
+              <button
+                class="settings-tab"
+                id="tab-security"
+                data-tab="security"
+                role="tab"
+                aria-controls="panel-security"
+                aria-selected="false"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Security
+              </button>
+            </div>
+            <!-- /.settings-tabs -->
+
+            <!-- ── Content panels ──────────────────────────────────── -->
+            <div class="settings-panel">
+              <!-- ─ Account panel ──────────────────────────────────── -->
+              <section
+                class="settings-panel-section"
+                id="panel-account"
+                role="tabpanel"
+                aria-labelledby="tab-account"
+              >
+                <h2 class="settings-panel__title">Account Information</h2>
+
+                <!-- Avatar block -->
+                <div class="settings-avatar-block">
+                  <div
+                    class="settings-avatar"
+                    id="settings-avatar-el"
+                    aria-hidden="true"
+                  >
+                    <span id="settings-avatar-initials">DA</span>
+                  </div>
+                  <div>
+                    <div
+                      class="settings-avatar__name"
+                      id="settings-avatar-name"
+                    >
+                      Dr. Amaka Adeyemi
+                    </div>
+                    <div
+                      class="settings-avatar__role"
+                      id="settings-avatar-role"
+                    >
+                      Cardiology
+                    </div>
+                    <div class="settings-avatar__status">Online</div>
+                  </div>
+                </div>
+
+                <form id="account-form" novalidate>
+                  <div class="settings-form-grid">
+                    <div class="settings-field">
+                      <label for="setting-display-name">Full Name</label>
+                      <input
+                        type="text"
+                        id="setting-display-name"
+                        class="form-input"
+                        placeholder="Dr. Amaka Adeyemi"
+                        maxlength="80"
+                      />
+                    </div>
+                    <div class="settings-field">
+                      <label for="setting-email">Email</label>
+                      <input
+                        type="email"
+                        id="setting-email"
+                        class="form-input"
+                        placeholder="dr@hospital.org"
+                        maxlength="120"
+                      />
+                    </div>
+                    <div class="settings-field">
+                      <label for="setting-specialty">Specialty</label>
+                      <input
+                        type="text"
+                        id="setting-specialty"
+                        class="form-input"
+                        placeholder="Cardiology"
+                        maxlength="80"
+                      />
+                    </div>
+                    <div class="settings-field">
+                      <label for="setting-hospital">Hospital</label>
+                      <input
+                        type="text"
+                        id="setting-hospital"
+                        class="form-input"
+                        placeholder="Teaching Hospital"
+                        maxlength="100"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="settings-actions">
+                    <button
+                      type="submit"
+                      id="btn-save-account"
+                      class="btn btn--primary"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6a1 1 0 10-2 0v5.586l-1.293-1.293z"
+                        />
+                      </svg>
+                      Save Changes
+                    </button>
+                    <span
+                      id="settings-save-status"
+                      class="settings-save-status"
+                      aria-live="polite"
+                    ></span>
+                  </div>
+                </form>
+              </section>
+
+              <!-- ─ Notifications panel ────────────────────────────── -->
+              <section
+                class="settings-panel-section"
+                id="panel-notifications"
+                role="tabpanel"
+                aria-labelledby="tab-notifications"
+                style="display: none"
+              >
+                <h2 class="settings-panel__title">Notification Preferences</h2>
+
+                <form id="notifications-form" novalidate>
+                  <div class="settings-toggle-list">
+                    <div class="settings-toggle-row">
+                      <div class="settings-toggle-row__text">
+                        <div class="settings-toggle-row__label">
+                          Critical Alerts
+                        </div>
+                        <div class="settings-toggle-row__hint">
+                          Receive notifications for critical patient alerts
+                        </div>
+                      </div>
+                      <label
+                        class="toggle-input"
+                        aria-label="Toggle critical alerts"
+                      >
+                        <input type="checkbox" id="setting-critical-alerts" />
+                        <span class="toggle-input__slider"></span>
+                      </label>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                      <div class="settings-toggle-row__text">
+                        <div class="settings-toggle-row__label">
+                          Warning Alerts
+                        </div>
+                        <div class="settings-toggle-row__hint">
+                          Receive notifications for warning alerts
+                        </div>
+                      </div>
+                      <label
+                        class="toggle-input"
+                        aria-label="Toggle warning alerts"
+                      >
+                        <input type="checkbox" id="setting-warning-alerts" />
+                        <span class="toggle-input__slider"></span>
+                      </label>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                      <div class="settings-toggle-row__text">
+                        <div class="settings-toggle-row__label">
+                          Patient Updates
+                        </div>
+                        <div class="settings-toggle-row__hint">
+                          Receive notifications for patient status changes
+                        </div>
+                      </div>
+                      <label
+                        class="toggle-input"
+                        aria-label="Toggle patient updates"
+                      >
+                        <input type="checkbox" id="setting-patient-updates" />
+                        <span class="toggle-input__slider"></span>
+                      </label>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                      <div class="settings-toggle-row__text">
+                        <div class="settings-toggle-row__label">
+                          Report Generated
+                        </div>
+                        <div class="settings-toggle-row__hint">
+                          Notify when a report is generated
+                        </div>
+                      </div>
+                      <label
+                        class="toggle-input"
+                        aria-label="Toggle report generated notifications"
+                      >
+                        <input type="checkbox" id="setting-report-generated" />
+                        <span class="toggle-input__slider"></span>
+                      </label>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                      <div class="settings-toggle-row__text">
+                        <div class="settings-toggle-row__label">
+                          Email Notifications
+                        </div>
+                        <div class="settings-toggle-row__hint">
+                          Send notifications via email
+                        </div>
+                      </div>
+                      <label
+                        class="toggle-input"
+                        aria-label="Toggle email notifications"
+                      >
+                        <input
+                          type="checkbox"
+                          id="setting-email-notifications"
+                        />
+                        <span class="toggle-input__slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- /.settings-toggle-list -->
+
+                  <!-- Alert confidence threshold -->
+                  <div
+                    style="
+                      margin-top: var(--space-5);
+                      padding-top: var(--space-4);
+                      border-top: 1px solid var(--color-border);
+                    "
+                  >
+                    <div class="settings-field" style="max-width: 260px">
+                      <label for="setting-alert-threshold"
+                        >Alert Confidence Threshold</label
+                      >
+                      <input
+                        type="number"
+                        id="setting-alert-threshold"
+                        class="form-input"
+                        min="0.50"
+                        max="1.00"
+                        step="0.01"
+                        placeholder="0.85"
+                      />
+                      <span class="settings-field__hint"
+                        >Predictions above this confidence trigger an alert
+                        (0.50–1.00)</span
+                      >
+                      <div
+                        id="threshold-warning"
+                        class="settings-field__warning hidden"
+                        role="alert"
+                      >
+                        ⚠ Setting below 0.80 may generate excessive
+                        low-confidence alerts (HIPAA risk)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="settings-actions">
+                    <button
+                      type="submit"
+                      id="btn-save-notifications"
+                      class="btn btn--primary"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6a1 1 0 10-2 0v5.586l-1.293-1.293z"
+                        />
+                      </svg>
+                      Save Changes
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <!-- ─ Security panel ─────────────────────────────────── -->
+              <section
+                class="settings-panel-section"
+                id="panel-security"
+                role="tabpanel"
+                aria-labelledby="tab-security"
+                style="display: none"
+              >
+                <h2 class="settings-panel__title">Security</h2>
+
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--space-4);
+                  "
+                >
+                  <div class="settings-field">
+                    <label for="setting-current-password"
+                      >Current Password</label
+                    >
+                    <input
+                      type="password"
+                      id="setting-current-password"
+                      class="form-input"
+                      placeholder="Enter current password"
+                      autocomplete="current-password"
+                    />
+                  </div>
+                  <div class="settings-field">
+                    <label for="setting-new-password">New Password</label>
+                    <input
+                      type="password"
+                      id="setting-new-password"
+                      class="form-input"
+                      placeholder="Enter new password"
+                      autocomplete="new-password"
+                    />
+                  </div>
+                  <div class="settings-field">
+                    <label for="setting-confirm-password"
+                      >Confirm New Password</label
+                    >
+                    <input
+                      type="password"
+                      id="setting-confirm-password"
+                      class="form-input"
+                      placeholder="Confirm new password"
+                      autocomplete="new-password"
+                    />
+                  </div>
+                </div>
+
+                <div class="settings-actions">
+                  <button
+                    type="button"
+                    class="btn btn--primary"
+                    onclick="
+                      import('./js/components/toast.js').then((m) =>
+                        m.showToast(
+                          'Password change is deferred to Sprint 6 (backend integration).',
+                          'info',
+                        ),
+                      )
+                    "
+                  >
+                    Change Password
+                  </button>
+                  <span class="settings-field__hint" style="margin-top: 0">
+                    Password changes will be enabled when the backend is
+                    connected.
+                  </span>
+                </div>
+              </section>
+            </div>
+            <!-- /.settings-panel -->
+          </div>
+          <!-- /.settings-layout -->
+        </div>
+        <!-- /.settings-page -->
+      </main>
+    </div>
+    <!-- /#app-shell -->
+
+    <script type="module">
+      import { injectNav } from "./js/components/nav.js";
+      import { showToast } from "./js/components/toast.js";
+      import "./js/settings.js";
+
+      injectNav(document.getElementById("nav-container"));
+
+      window.addEventListener("unhandledrejection", (event) => {
+        const err = event.reason;
+        if (err?.status === 401) {
+          window.location.href = "login.html";
+          return;
+        }
+        showToast(err?.message || "An unexpected error occurred.", "error");
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Sign in to ECG Triage — the AI-powered clinical ECG diagnostic platform."
+    />
+    <title>Sign In — ECG Triage</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+    <style>
+      /* ── Login-page-specific overrides ── */
+
+      /* Animated ECG hero line on the left panel */
+      .hero-ecg {
+        width: 100%;
+        overflow: hidden;
+        border-radius: var(--radius-lg);
+        background:
+          repeating-linear-gradient(
+            90deg,
+            rgba(46, 160, 67, 0.05) 0,
+            rgba(46, 160, 67, 0.05) 1px,
+            transparent 1px,
+            transparent 40px
+          ),
+          repeating-linear-gradient(
+            0deg,
+            rgba(46, 160, 67, 0.05) 0,
+            rgba(46, 160, 67, 0.05) 1px,
+            transparent 1px,
+            transparent 40px
+          ),
+          var(--color-surface);
+        border: 1px solid var(--color-border);
+        padding: 28px 0;
+        position: relative;
+      }
+
+      .hero-ecg svg {
+        width: 100%;
+        height: 120px;
+        overflow: visible;
+      }
+
+      .hero-ecg__path {
+        stroke: var(--color-accent);
+        stroke-width: 2;
+        fill: none;
+        filter: drop-shadow(0 0 6px rgba(46, 160, 67, 0.5));
+        stroke-dasharray: 1200;
+        stroke-dashoffset: 1200;
+        animation: draw-ecg 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+      }
+
+      @keyframes draw-ecg {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      /* Stat pills below the hero ECG */
+      .hero-stats {
+        display: flex;
+        gap: var(--space-4);
+        margin-top: var(--space-6);
+      }
+
+      .hero-stat {
+        flex: 1;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        padding: var(--space-4);
+        text-align: center;
+      }
+      .hero-stat__value {
+        font-family: var(--font-base);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-accent);
+        display: block;
+      }
+      .hero-stat__label {
+        font-size: 0.75rem;
+        color: var(--color-text-secondary);
+        margin-top: 2px;
+      }
+
+      /* Login card */
+      .login-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-10);
+        width: 100%;
+        animation: fade-in 0.4s ease both;
+      }
+
+      .login-card__logo {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin-bottom: var(--space-8);
+      }
+      .login-card__logo-icon {
+        width: 36px;
+        height: 36px;
+        color: var(--color-accent);
+        flex-shrink: 0;
+      }
+      .login-card__logo-text {
+        font-weight: 700;
+        font-size: 1.125rem;
+        letter-spacing: -0.3px;
+      }
+      .login-card__logo-sub {
+        font-size: 0.6875rem;
+        color: var(--color-text-secondary);
+      }
+
+      .login-card__heading {
+        font-size: 1.75rem;
+        margin-bottom: var(--space-1);
+      }
+      .login-card__sub {
+        color: var(--color-text-secondary);
+        font-size: 0.9375rem;
+        margin-bottom: var(--space-8);
+      }
+
+      /* Demo hint */
+      .demo-hint {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        background: var(--color-info-muted);
+        border: 1px solid rgba(56, 139, 253, 0.2);
+        border-radius: var(--radius-md);
+        font-size: 0.8125rem;
+        color: var(--color-info);
+        margin-bottom: var(--space-6);
+      }
+      .demo-hint svg {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Error message inline */
+      #login-error {
+        display: none;
+        padding: var(--space-3) var(--space-4);
+        background: var(--color-danger-muted);
+        border: 1px solid rgba(248, 81, 73, 0.25);
+        border-radius: var(--radius-md);
+        color: var(--color-danger);
+        font-size: 0.875rem;
+        margin-bottom: var(--space-4);
+      }
+      #login-error.visible {
+        display: block;
+      }
+
+      /* Footer link */
+      .login-footer {
+        margin-top: var(--space-6);
+        text-align: center;
+        font-size: 0.8125rem;
+        color: var(--color-text-secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-auth" id="main">
+      <div class="page-auth__inner">
+        <!-- ── Left: Hero panel ──────────────────────────────────────────── -->
+        <div class="page-auth__hero animate-fade-in">
+          <div style="margin-bottom: var(--space-8)">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: var(--space-3);
+                margin-bottom: var(--space-5);
+              "
+            >
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--color-accent)"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline
+                  points="2 12 6 12 8 4 10 20 12 12 14 16 16 12 22 12"
+                />
+              </svg>
+              <div>
+                <div style="font-weight: 700; font-size: 1.125rem">
+                  ECG Triage
+                </div>
+                <div class="text-xs text-secondary">AI Diagnostic Platform</div>
+              </div>
+            </div>
+
+            <h1
+              style="
+                font-size: 2.25rem;
+                line-height: 1.15;
+                margin-bottom: var(--space-4);
+              "
+            >
+              Clinical-grade<br />ECG analysis,<br />
+              <span style="color: var(--color-accent)">in seconds.</span>
+            </h1>
+            <p
+              class="text-secondary"
+              style="font-size: 1rem; max-width: 380px; line-height: 1.6"
+            >
+              Upload a 12-lead ECG in CSV or WFDB format. Our CNN + BiLSTM model
+              returns a primary diagnosis with confidence scores and full
+              waveform visualisation.
+            </p>
+          </div>
+
+          <!-- Animated ECG waveform -->
+          <div class="hero-ecg" aria-hidden="true">
+            <svg viewBox="0 0 800 120" preserveAspectRatio="none">
+              <!-- Realistic 12-lead style single-sweep path -->
+              <path
+                class="hero-ecg__path"
+                d="M0,60
+               L60,60
+               L80,55 L95,65 L110,60
+               L130,60
+               L140,58 L148,30 L152,90 L160,60
+               L180,70 L200,55 L220,60
+               L240,60
+               L260,55 L275,65 L290,60
+               L310,60
+               L320,58 L328,28 L332,92 L340,60
+               L360,70 L380,55 L400,60
+               L420,60
+               L440,55 L455,65 L470,60
+               L490,60
+               L500,58 L508,26 L512,94 L520,60
+               L540,70 L560,55 L580,60
+               L600,60
+               L620,55 L635,65 L650,60
+               L670,60
+               L680,58 L688,28 L692,92 L700,60
+               L720,70 L740,55 L760,60
+               L800,60"
+              />
+            </svg>
+          </div>
+
+          <!-- Stat pills -->
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span class="hero-stat__value">12</span>
+              <div class="hero-stat__label">Lead Support</div>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat__value">&lt;2s</span>
+              <div class="hero-stat__label">Avg. Inference</div>
+            </div>
+            <div class="hero-stat">
+              <span class="hero-stat__value">CSV</span>
+              <div class="hero-stat__label">+ WFDB</div>
+            </div>
+          </div>
+        </div>
+        <!-- ── End hero ──────────────────────────────────────────────────── -->
+
+        <!-- ── Right: Login form ─────────────────────────────────────────── -->
+        <div class="login-card">
+          <!-- Logo (mobile / small screens only — hero is hidden) -->
+          <div class="login-card__logo">
+            <svg
+              class="login-card__logo-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <polyline points="2 12 6 12 8 4 10 20 12 12 14 16 16 12 22 12" />
+            </svg>
+            <div>
+              <div class="login-card__logo-text">ECG Triage</div>
+              <div class="login-card__logo-sub">AI Diagnostic Platform</div>
+            </div>
+          </div>
+
+          <h2 class="login-card__heading">Welcome back</h2>
+          <p class="login-card__sub">Sign in to your clinical dashboard</p>
+
+          <!-- Demo credentials hint -->
+          <div class="demo-hint" role="note">
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path
+                d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 12A5 5 0 118 3a5 5 0 010 10zm-.75-4.75a.75.75 0 011.5 0v3a.75.75 0 01-1.5 0v-3zm.75-4a1 1 0 100 2 1 1 0 000-2z"
+              />
+            </svg>
+            Demo credentials: <strong>demo</strong> / <strong>demo</strong>
+          </div>
+
+          <!-- Error message -->
+          <div id="login-error" role="alert" aria-live="assertive"></div>
+
+          <!-- Login form -->
+          <form id="login-form" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="input-username">Username</label>
+              <input
+                class="form-input"
+                type="text"
+                id="input-username"
+                name="username"
+                autocomplete="username"
+                placeholder="your.username"
+                required
+                aria-required="true"
+              />
+              <span class="form-error" id="error-username" role="alert"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="input-password">Password</label>
+              <div class="input-wrapper">
+                <input
+                  class="form-input form-input--password"
+                  type="password"
+                  id="input-password"
+                  name="password"
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  required
+                  aria-required="true"
+                />
+                <!-- Show/hide password toggle -->
+                <button
+                  type="button"
+                  class="input-suffix"
+                  id="toggle-password"
+                  aria-label="Show password"
+                  aria-pressed="false"
+                >
+                  <!-- Eye icon (closed = password hidden) -->
+                  <svg
+                    id="icon-eye-closed"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8
+                         a18.45 18.45 0 015.06-5.94"
+                    />
+                    <path
+                      d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8
+                         a18.5 18.5 0 01-2.16 3.19"
+                    />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                  <!-- Eye icon (open = password visible) -->
+                  <svg
+                    id="icon-eye-open"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                    style="display: none"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+              <span class="form-error" id="error-password" role="alert"></span>
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn--primary btn--full btn--lg"
+              id="btn-signin"
+              style="margin-top: var(--space-2)"
+            >
+              Sign In
+            </button>
+          </form>
+
+          <div class="login-footer">
+            Contact your administrator to request access.
+          </div>
+        </div>
+        <!-- ── End login form ────────────────────────────────────────────── -->
+      </div>
+    </main>
+
+    <script type="module">
+      import { redirectIfAuthenticated, login } from "./js/auth.js";
+      import { showToast } from "./js/components/toast.js";
+      import { showLoader, hideLoader } from "./js/components/loader.js";
+
+      // ── Redirect immediately if already logged in ──────────────────────────────
+      redirectIfAuthenticated();
+
+      // ── DOM refs ───────────────────────────────────────────────────────────────
+      const form = document.getElementById("login-form");
+      const usernameInput = document.getElementById("input-username");
+      const passwordInput = document.getElementById("input-password");
+      const errorBox = document.getElementById("login-error");
+      const errorUsername = document.getElementById("error-username");
+      const errorPassword = document.getElementById("error-password");
+      const submitBtn = document.getElementById("btn-signin");
+      const togglePwd = document.getElementById("toggle-password");
+      const iconClosed = document.getElementById("icon-eye-closed");
+      const iconOpen = document.getElementById("icon-eye-open");
+
+      // ── Password show/hide toggle ──────────────────────────────────────────────
+      togglePwd.addEventListener("click", () => {
+        const isHidden = passwordInput.type === "password";
+        passwordInput.type = isHidden ? "text" : "password";
+        iconClosed.style.display = isHidden ? "none" : "";
+        iconOpen.style.display = isHidden ? "" : "none";
+        togglePwd.setAttribute("aria-pressed", String(isHidden));
+        togglePwd.setAttribute(
+          "aria-label",
+          isHidden ? "Hide password" : "Show password",
+        );
+      });
+
+      // ── Inline field validation ────────────────────────────────────────────────
+      function clearErrors() {
+        errorBox.textContent = "";
+        errorBox.classList.remove("visible");
+        errorUsername.textContent = "";
+        errorUsername.classList.remove("visible");
+        errorPassword.textContent = "";
+        errorPassword.classList.remove("visible");
+        usernameInput.classList.remove("error");
+        passwordInput.classList.remove("error");
+      }
+
+      function showFieldError(inputEl, errorEl, message) {
+        inputEl.classList.add("error");
+        errorEl.textContent = message;
+        errorEl.classList.add("visible");
+      }
+
+      function validate() {
+        let valid = true;
+        if (!usernameInput.value.trim()) {
+          showFieldError(usernameInput, errorUsername, "Username is required.");
+          valid = false;
+        }
+        if (!passwordInput.value) {
+          showFieldError(passwordInput, errorPassword, "Password is required.");
+          valid = false;
+        }
+        return valid;
+      }
+
+      // ── Form submit ────────────────────────────────────────────────────────────
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+
+        if (!validate()) return;
+
+        submitBtn.classList.add("loading");
+        submitBtn.disabled = true;
+        showLoader("Signing in…");
+
+        try {
+          await login(usernameInput.value.trim(), passwordInput.value);
+          // login() stores the token; redirect to dashboard
+          window.location.replace("dashboard.html");
+        } catch (err) {
+          hideLoader();
+          submitBtn.classList.remove("loading");
+          submitBtn.disabled = false;
+
+          const message =
+            err?.status === 401
+              ? "Incorrect username or password."
+              : err?.message || "Sign in failed. Please try again.";
+
+          errorBox.textContent = message;
+          errorBox.classList.add("visible");
+          showToast(message, "error");
+          usernameInput.focus();
+        }
+      });
+
+      // Clear server-error box when user starts typing again
+      [usernameInput, passwordInput].forEach((el) =>
+        el.addEventListener("input", () => {
+          if (errorBox.classList.contains("visible")) clearErrors();
+        }),
+      );
+
+      // Global unhandled-rejection safety net
+      window.addEventListener("unhandledrejection", (e) => {
+        hideLoader();
+        showToast(
+          e.reason?.message || "An unexpected error occurred.",
+          "error",
+        );
+      });
+    </script>
+  </body>
+</html>

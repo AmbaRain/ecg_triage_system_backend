@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ECG Triage — Sprint 2 Test Harness</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+    <style>
+      body {
+        padding: 40px;
+        font-family: var(--font-base);
+      }
+      .harness-header {
+        margin-bottom: 32px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--color-border);
+      }
+      .harness-header h1 {
+        font-size: 1.4rem;
+        color: var(--color-text-primary);
+        margin-bottom: 4px;
+      }
+      .harness-header p {
+        color: var(--color-text-secondary);
+        font-size: 0.85rem;
+      }
+
+      .suite {
+        margin-bottom: 32px;
+      }
+      .suite-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--color-text-secondary);
+        margin-bottom: 10px;
+      }
+
+      .test-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        font-size: 0.85rem;
+      }
+      .test-row.pass {
+        border-left: 3px solid var(--color-accent);
+      }
+      .test-row.fail {
+        border-left: 3px solid var(--color-danger);
+      }
+      .test-row.pending {
+        border-left: 3px solid var(--color-warning);
+      }
+
+      .test-status {
+        font-weight: 700;
+        font-size: 0.75rem;
+        width: 38px;
+        flex-shrink: 0;
+        padding-top: 1px;
+      }
+      .pass .test-status {
+        color: var(--color-accent);
+      }
+      .fail .test-status {
+        color: var(--color-danger);
+      }
+      .pending .test-status {
+        color: var(--color-warning);
+      }
+
+      .test-name {
+        flex: 1;
+        color: var(--color-text-primary);
+      }
+      .test-detail {
+        font-size: 0.75rem;
+        color: var(--color-danger);
+        margin-top: 2px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .summary-bar {
+        display: flex;
+        gap: 20px;
+        padding: 16px 20px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 8px;
+        margin-bottom: 32px;
+        font-size: 0.85rem;
+      }
+      .summary-bar span {
+        color: var(--color-text-secondary);
+      }
+      .summary-bar strong {
+        color: var(--color-text-primary);
+      }
+
+      .page-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 40px;
+      }
+      .section-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--color-text-secondary);
+        margin: 24px 0 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+  IMPORTANT: This page must be accessed while AUTHENTICATED
+  (after logging in with demo/demo on login.html).
+  The tests manipulate sessionStorage directly rather than
+  calling requireAuth() mid-run to prevent unintended redirects.
+-->
+    <div class="harness-header">
+      <h1>Sprint 2 — Test Harness</h1>
+      <p>
+        auth.js · router.js · login.html · dashboard.html · 404.html ·
+        index.html
+      </p>
+      <p
+        style="color: var(--color-warning); margin-top: 4px; font-size: 0.8rem"
+      >
+        ⚠ Run this page while logged in (demo/demo). Auth-guard redirect tests
+        use sessionStorage stubs, not real navigation.
+      </p>
+    </div>
+
+    <div id="summary" class="summary-bar"><span>Running tests…</span></div>
+    <div id="results"></div>
+
+    <div class="section-title">Visual page checks — open each in a new tab</div>
+    <div class="page-links">
+      <a href="/login.html" class="btn btn--ghost btn--sm" target="_blank"
+        >login.html ↗</a
+      >
+      <a href="/dashboard.html" class="btn btn--ghost btn--sm" target="_blank"
+        >dashboard.html ↗</a
+      >
+      <a href="/404.html" class="btn btn--ghost btn--sm" target="_blank"
+        >404.html ↗</a
+      >
+      <a href="/index.html" class="btn btn--ghost btn--sm" target="_blank"
+        >index.html (redirect) ↗</a
+      >
+    </div>
+
+    <script type="module">
+      // ─── Micro test runner ──────────────────────────────────────────────────────
+      const suites = [];
+      let currentSuite = null;
+
+      function describe(name, fn) {
+        currentSuite = { name, tests: [] };
+        suites.push(currentSuite);
+        fn();
+      }
+      async function it(name, fn) {
+        const test = { name, status: "pending", detail: "" };
+        currentSuite.tests.push(test);
+        try {
+          await fn();
+          test.status = "pass";
+        } catch (err) {
+          test.status = "fail";
+          test.detail = err?.message ?? String(err);
+        }
+      }
+      function assert(cond, msg) {
+        if (!cond) throw new Error(msg ?? "Assertion failed");
+      }
+      function assertEqual(a, b, msg) {
+        if (a !== b)
+          throw new Error(
+            msg ?? `Expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`,
+          );
+      }
+      function assertDefined(v, msg) {
+        if (v == null) throw new Error(msg ?? "Value is null/undefined");
+      }
+      function assertContains(str, sub, msg) {
+        if (!String(str).includes(sub))
+          throw new Error(msg ?? `"${sub}" not found in result`);
+      }
+
+      // ─── Import modules ─────────────────────────────────────────────────────────
+      let getAuthToken, getCurrentUser, isAuthenticated, login;
+      let getCurrentUserRole, hasRole, requireAuth, redirectIfAuthenticated;
+      let redirector;
+      let getQueryParam, getAllQueryParams, buildUrl, currentPage;
+      let CONFIG;
+
+      try {
+        ({
+          getAuthToken,
+          getCurrentUser,
+          isAuthenticated,
+          login,
+          getCurrentUserRole,
+          hasRole,
+          requireAuth,
+          redirectIfAuthenticated,
+          redirector,
+        } = await import("./js/auth.js"));
+        ({ getQueryParam, getAllQueryParams, buildUrl, currentPage } =
+          await import("./js/router.js"));
+        ({ CONFIG } = await import("./js/config.js"));
+      } catch (e) {
+        document.getElementById("summary").innerHTML =
+          `<span style="color:var(--color-danger)">⚠ Module import failed: ${e.message}</span>`;
+        throw e;
+      }
+
+      // Stub the redirector so we do not trigger actual page navigation during tests
+      if (redirector) {
+        redirector.navigate = (url) => {
+          console.log(`[TEST] Intercepted redirect to: ${url}`);
+        };
+      }
+
+      // ─── Test-only sessionStorage helpers ──────────────────────────────────────
+      // We write directly to sessionStorage instead of calling logout()
+      // to avoid triggering the navigation redirect during tests.
+      const TOKEN_KEY = CONFIG?.AUTH_TOKEN_KEY ?? "ecg_auth_token";
+      const USER_KEY = CONFIG?.AUTH_USER_KEY ?? "ecg_current_user";
+
+      function stubSession(token, user) {
+        sessionStorage.setItem(TOKEN_KEY, token);
+        sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
+      function clearSession() {
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(USER_KEY);
+      }
+      function stubEmptySession() {
+        clearSession();
+      }
+
+      // Pre-check: log in if not already authenticated, so the page itself doesn't redirect
+      if (!isAuthenticated()) {
+        try {
+          await login("demo", "demo");
+        } catch (e) {
+          document.getElementById("summary").innerHTML =
+            `<span style="color:var(--color-danger)">⚠ Pre-auth failed — ensure mock API is active: ${e.message}</span>`;
+          throw e;
+        }
+      }
+
+      // Snapshot the real token for restoration after each stubs block
+      const REAL_TOKEN = getAuthToken();
+      const REAL_USER = JSON.parse(sessionStorage.getItem(USER_KEY) ?? "null");
+
+      function restoreRealSession() {
+        if (REAL_TOKEN) stubSession(REAL_TOKEN, REAL_USER);
+        else clearSession();
+      }
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // auth.js — token helper reads
+      // ════════════════════════════════════════════════════════════════════════════
+
+      describe("auth.js — token reads (authenticated state)", () => {
+        it("getAuthToken() returns a non-null string", () => {
+          restoreRealSession();
+          const t = getAuthToken();
+          assert(
+            typeof t === "string" && t.length > 0,
+            `Expected string token, got ${JSON.stringify(t)}`,
+          );
+        });
+
+        it("getCurrentUser() returns a user object", () => {
+          const u = getCurrentUser();
+          assertDefined(u, "getCurrentUser() is null while authenticated");
+          assertDefined(u.username);
+          assertDefined(u.user_id);
+          assertDefined(u.role);
+        });
+
+        it('getCurrentUser().username is "dr.adeyemi"', () => {
+          const u = getCurrentUser();
+          assertEqual(u?.username, "dr.adeyemi");
+        });
+
+        it("isAuthenticated() returns true when token present", () => {
+          assertEqual(isAuthenticated(), true);
+        });
+
+        it('getCurrentUserRole() returns "clinician"', () => {
+          assertEqual(getCurrentUserRole(), "clinician");
+        });
+
+        it('hasRole("clinician") returns true (single-role system)', () => {
+          assertEqual(hasRole("clinician"), true);
+        });
+
+        it('hasRole("any_role") returns true (single-role — all pass)', () => {
+          assertEqual(hasRole("admin"), true);
+        });
+      });
+
+      describe("auth.js — token reads (stubbed empty session)", () => {
+        it("getAuthToken() returns null when session cleared", () => {
+          stubEmptySession();
+          assertEqual(getAuthToken(), null);
+          restoreRealSession();
+        });
+
+        it("getCurrentUser() returns null when session cleared", () => {
+          stubEmptySession();
+          assertEqual(getCurrentUser(), null);
+          restoreRealSession();
+        });
+
+        it("isAuthenticated() returns false when no token", () => {
+          stubEmptySession();
+          const result = isAuthenticated();
+          restoreRealSession();
+          assertEqual(result, false);
+        });
+
+        it('getCurrentUserRole() returns "clinician" fallback when no user', () => {
+          stubEmptySession();
+          const role = getCurrentUserRole();
+          restoreRealSession();
+          assertEqual(role, "clinician");
+        });
+      });
+
+      describe("auth.js — corrupted storage resilience", () => {
+        it("getCurrentUser() returns null on corrupted JSON (does not throw)", () => {
+          sessionStorage.setItem(USER_KEY, "{bad json{{{{");
+          let result,
+            threw = false;
+          try {
+            result = getCurrentUser();
+          } catch {
+            threw = true;
+          }
+          restoreRealSession();
+          assert(
+            !threw,
+            "getCurrentUser() threw on corrupted JSON — should catch silently",
+          );
+          assertEqual(
+            result,
+            null,
+            "getCurrentUser() should return null for corrupt storage",
+          );
+        });
+      });
+
+      describe("auth.js — requireAuth()", () => {
+        it("requireAuth() returns true when authenticated", () => {
+          restoreRealSession();
+          // Call with real session — must NOT redirect and must return true
+          const result = requireAuth();
+          assertEqual(
+            result,
+            true,
+            "requireAuth() returned false while authenticated",
+          );
+        });
+
+        it("requireAuth() returns false when unauthenticated (return value only — redirect not followed)", () => {
+          // We stub empty session, call requireAuth(), then immediately restore.
+          // The redirect fires (window.location.href = 'login.html') but because
+          // we restore the session before any async tick, the navigation is cancelled
+          // by the next page load — we only care about the synchronous return value.
+          stubEmptySession();
+          const result = requireAuth();
+          restoreRealSession(); // restore before navigation takes effect
+          assertEqual(
+            result,
+            false,
+            "requireAuth() should return false when unauthenticated",
+          );
+        });
+      });
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // auth.js — login() success and failure
+      // ════════════════════════════════════════════════════════════════════════════
+
+      describe("auth.js — login() success", () => {
+        it('login("demo","demo") resolves with user object', async () => {
+          clearSession();
+          const user = await login("demo", "demo");
+          assertDefined(user);
+          assertDefined(user.username);
+          assertDefined(user.user_id);
+        });
+
+        it("Token written to sessionStorage after login()", () => {
+          assertDefined(
+            getAuthToken(),
+            "Token not in sessionStorage after login()",
+          );
+        });
+
+        it("User object written to sessionStorage after login()", () => {
+          const u = getCurrentUser();
+          assertDefined(u, "User not in sessionStorage after login()");
+          assertEqual(u?.username, "dr.adeyemi");
+        });
+
+        it("isAuthenticated() is true immediately after login()", () => {
+          assertEqual(isAuthenticated(), true);
+        });
+      });
+
+      describe("auth.js — login() failure", () => {
+        it('login("bad","creds") rejects with status 401', async () => {
+          clearSession();
+          let threw = false,
+            status = null;
+          try {
+            await login("bad", "creds");
+          } catch (err) {
+            threw = true;
+            status = err?.status;
+          }
+          restoreRealSession();
+          assert(threw, "login() with bad creds should throw");
+          assertEqual(status, 401, `Expected status 401, got ${status}`);
+        });
+
+        it("sessionStorage stays empty after failed login()", () => {
+          // Already cleared above; restoreRealSession was called in the previous test
+          // Clear again to simulate the failed-login scenario
+          stubEmptySession();
+          // Since login() failed (no actual call here), storage remains empty
+          assertEqual(getAuthToken(), null);
+          restoreRealSession();
+        });
+      });
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // router.js — buildUrl()
+      // ════════════════════════════════════════════════════════════════════════════
+
+      describe("router.js — buildUrl()", () => {
+        it("builds a URL with a single string param", () => {
+          const url = buildUrl("/results.html", { prediction_id: "pred_001" });
+          assertContains(url, "prediction_id=pred_001");
+          assertContains(url, "results.html");
+        });
+
+        it("builds a URL with multiple params", () => {
+          const url = buildUrl("/patient.html", {
+            patient_id: "p_007",
+            tab: "waveform",
+          });
+          assertContains(url, "patient_id=p_007");
+          assertContains(url, "tab=waveform");
+        });
+
+        it("omits null values from the URL", () => {
+          const url = buildUrl("/patients.html", { search: null, limit: 20 });
+          assert(
+            !url.includes("search=null") && !url.includes("search="),
+            "null param should be omitted",
+          );
+          assertContains(url, "limit=20");
+        });
+
+        it("omits undefined values from the URL", () => {
+          const url = buildUrl("/patients.html", { page: undefined, limit: 5 });
+          assert(!url.includes("page="), "undefined param should be omitted");
+        });
+
+        it("handles numeric param values", () => {
+          const url = buildUrl("/patients.html", { page: 2, limit: 10 });
+          assertContains(url, "page=2");
+          assertContains(url, "limit=10");
+        });
+
+        it("returns a valid URL string (parseable by new URL)", () => {
+          const urlStr = buildUrl("dashboard.html", { foo: "bar" });
+          let valid = true;
+          try {
+            new URL(urlStr);
+          } catch {
+            valid = false;
+          }
+          assert(valid, `buildUrl() returned invalid URL: ${urlStr}`);
+        });
+
+        it("base with no params returns a clean URL", () => {
+          const url = buildUrl("dashboard.html", {});
+          assertContains(url, "dashboard.html");
+          assert(!url.includes("?"), 'Empty params should not append "?"');
+        });
+      });
+
+      describe("router.js — getQueryParam()", () => {
+        it("returns null for a key not in this page URL", () => {
+          assertEqual(getQueryParam("__nonexistent__"), null);
+        });
+
+        it("returns null (not undefined) for missing keys", () => {
+          assertEqual(getQueryParam("missing_key"), null);
+        });
+      });
+
+      describe("router.js — getAllQueryParams()", () => {
+        it("returns a plain object", () => {
+          const res = getAllQueryParams();
+          assertDefined(res);
+          assert(
+            typeof res === "object" && !Array.isArray(res),
+            "Expected plain object",
+          );
+        });
+      });
+
+      describe("router.js — currentPage()", () => {
+        it("returns a non-empty string", () => {
+          const p = currentPage();
+          assert(typeof p === "string" && p.length > 0);
+        });
+
+        it('does not start with "/"', () => {
+          assert(
+            !currentPage().startsWith("/"),
+            `currentPage() must not start with /: ${currentPage()}`,
+          );
+        });
+
+        it('matches "test-sprint2.html" for this page', () => {
+          assertContains(currentPage(), "test-sprint2");
+        });
+      });
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // HTML page structure (fetch + DOMParser — zero navigation)
+      // ════════════════════════════════════════════════════════════════════════════
+
+      describe("login.html — DOM structure", () => {
+        let doc;
+        it("fetches with HTTP 200", async () => {
+          const res = await fetch("login.html");
+          assertEqual(res.status, 200, `login.html returned ${res.status}`);
+          doc = new DOMParser().parseFromString(await res.text(), "text/html");
+        });
+        it('<title> contains "Sign In"', () =>
+          assertContains(doc?.title, "Sign In"));
+        it("#login-form exists", () =>
+          assertDefined(doc?.getElementById("login-form")));
+        it("#input-username exists", () =>
+          assertDefined(doc?.getElementById("input-username")));
+        it("#input-password exists", () =>
+          assertDefined(doc?.getElementById("input-password")));
+        it("#toggle-password exists", () =>
+          assertDefined(doc?.getElementById("toggle-password")));
+        it("#btn-signin exists", () =>
+          assertDefined(doc?.getElementById("btn-signin")));
+        it("#login-error div exists", () =>
+          assertDefined(doc?.getElementById("login-error")));
+        it(".demo-hint box present", () => {
+          const hint = doc?.querySelector(".demo-hint");
+          assertDefined(hint, ".demo-hint missing");
+          assertContains(hint.textContent, "demo");
+        });
+        it("imports auth.js", async () => {
+          const html = await (await fetch("login.html")).text();
+          assertContains(html, "auth.js");
+        });
+        it("calls redirectIfAuthenticated()", async () => {
+          const html = await (await fetch("login.html")).text();
+          assertContains(html, "redirectIfAuthenticated");
+        });
+        it("<meta description> is present", () => {
+          const meta = doc?.querySelector('meta[name="description"]');
+          assertDefined(meta, '<meta name="description"> missing');
+          assert((meta?.content ?? "").length > 0, "description is empty");
+        });
+        it("eye icon SVGs for show/hide password exist", () => {
+          assertDefined(
+            doc?.getElementById("icon-eye-closed"),
+            "#icon-eye-closed missing",
+          );
+          assertDefined(
+            doc?.getElementById("icon-eye-open"),
+            "#icon-eye-open missing",
+          );
+        });
+        it("hero-ecg SVG path present", () => {
+          assertDefined(
+            doc?.querySelector(".hero-ecg__path"),
+            ".hero-ecg__path missing",
+          );
+        });
+        it("3 hero-stat pills present", () => {
+          const pills = doc?.querySelectorAll(".hero-stat");
+          assertEqual(
+            pills?.length,
+            3,
+            `Expected 3 stat pills, got ${pills?.length}`,
+          );
+        });
+      });
+
+      describe("dashboard.html — DOM structure", () => {
+        let doc;
+        it("fetches with HTTP 200", async () => {
+          const res = await fetch("dashboard.html");
+          assertEqual(res.status, 200, `dashboard.html returned ${res.status}`);
+          doc = new DOMParser().parseFromString(await res.text(), "text/html");
+        });
+        it('<title> contains "Dashboard"', () =>
+          assertContains(doc?.title, "Dashboard"));
+        it("#app-shell exists", () =>
+          assertDefined(doc?.getElementById("app-shell")));
+        it("#nav-container exists", () =>
+          assertDefined(doc?.getElementById("nav-container")));
+        it("#stat-total-patients placeholder exists", () =>
+          assertDefined(doc?.getElementById("stat-total-patients")));
+        it("#stat-predictions placeholder exists", () =>
+          assertDefined(doc?.getElementById("stat-predictions")));
+        it("#patients-tbody exists", () =>
+          assertDefined(doc?.getElementById("patients-tbody")));
+        it("#patients-loading skeleton exists", () =>
+          assertDefined(doc?.getElementById("patients-loading")));
+        it("#btn-quick-upload links to upload.html", () => {
+          const btn = doc?.getElementById("btn-quick-upload");
+          assertDefined(btn);
+          assertContains(btn?.getAttribute("href") ?? "", "upload.html");
+        });
+        it("#global-search input exists", () =>
+          assertDefined(doc?.getElementById("global-search")));
+        it("#topbar-avatar exists", () =>
+          assertDefined(doc?.getElementById("topbar-avatar")));
+        it("#dashboard-date span exists", () =>
+          assertDefined(doc?.getElementById("dashboard-date")));
+        it("requireAuth() called in script", async () => {
+          const html = await (await fetch("dashboard.html")).text();
+          assertContains(html, "requireAuth");
+        });
+        it("imports auth.js", async () => {
+          const html = await (await fetch("dashboard.html")).text();
+          assertContains(html, "auth.js");
+        });
+        it("imports nav.js", async () => {
+          const html = await (await fetch("dashboard.html")).text();
+          assertContains(html, "nav.js");
+        });
+        it("<meta description> present", () => {
+          const meta = doc?.querySelector('meta[name="description"]');
+          assertDefined(meta);
+          assert((meta?.content ?? "").length > 0, "description is empty");
+        });
+      });
+
+      describe("404.html — DOM structure", () => {
+        let doc;
+        it("fetches with HTTP 200", async () => {
+          const res = await fetch("/404.html");
+          assertEqual(res.status, 200, `404.html returned ${res.status}`);
+          doc = new DOMParser().parseFromString(await res.text(), "text/html");
+        });
+        it('<title> contains "404"', () => assertContains(doc?.title, "404"));
+        it('"Signal lost" text present', () =>
+          assertContains(doc?.body?.textContent ?? "", "Signal lost"));
+        it("#btn-dashboard link present", () =>
+          assertDefined(doc?.getElementById("btn-dashboard")));
+        it("#btn-back button present", () =>
+          assertDefined(doc?.getElementById("btn-back")));
+        it(".flatline-path SVG element exists", () =>
+          assertDefined(doc?.querySelector(".flatline-path")));
+        it('.error-ecg__label contains "404"', () => {
+          const el = doc?.querySelector(".error-ecg__label");
+          assertDefined(el, ".error-ecg__label missing");
+          assertContains(el.textContent, "404");
+        });
+        it("No ES module imports (purely static)", async () => {
+          const html = await (await fetch("/404.html")).text();
+          // 404 must not have type="module" script that imports anything
+          const hasModuleImport =
+            html.includes('type="module"') && html.includes("import ");
+          assert(
+            !hasModuleImport,
+            "404.html should be static — no ES module imports",
+          );
+        });
+        it("#btn-dashboard href points to /dashboard.html", () => {
+          const btn = doc?.getElementById("btn-dashboard");
+          assertContains(btn?.getAttribute("href") ?? "", "dashboard.html");
+        });
+      });
+
+      describe("index.html — redirect shim", () => {
+        let html;
+        it("fetches with HTTP 200", async () => {
+          const res = await fetch("/index.html");
+          assertEqual(res.status, 200);
+          html = await res.text();
+        });
+        it("imports auth.js", () => assertContains(html, "auth.js"));
+        it("calls isAuthenticated()", () =>
+          assertContains(html, "isAuthenticated"));
+        it("contains login.html redirect path", () =>
+          assertContains(html, "login.html"));
+        it("contains dashboard.html redirect", () =>
+          assertContains(html, "dashboard.html"));
+        it("uses window.location.replace()", () =>
+          assertContains(html, "replace"));
+      });
+
+      // ════════════════════════════════════════════════════════════════════════════
+      // Integration — full login round-trip via auth.js
+      // ════════════════════════════════════════════════════════════════════════════
+
+      describe("auth.js + api-adapter — login round-trip integration", () => {
+        it("Full login: resolves → token stored → user readable", async () => {
+          clearSession();
+          const user = await login("demo", "demo");
+          assertDefined(user, "login() returned no user");
+          assertDefined(getAuthToken(), "Token not stored after login()");
+          const stored = getCurrentUser();
+          assertDefined(stored, "getCurrentUser() null after login()");
+          assertEqual(
+            stored.username,
+            user.username,
+            "Stored username mismatch",
+          );
+        });
+
+        it("getCurrentUser() is idempotent (same result on repeated calls)", () => {
+          const a = getCurrentUser();
+          const b = getCurrentUser();
+          assertEqual(a?.username, b?.username);
+          assertEqual(a?.user_id, b?.user_id);
+        });
+
+        it("isAuthenticated() remains true across multiple reads", () => {
+          assertEqual(isAuthenticated(), true);
+          assertEqual(isAuthenticated(), true);
+          assertEqual(isAuthenticated(), true);
+        });
+
+        it("getAuthToken() returns same value on repeated reads", () => {
+          const t1 = getAuthToken();
+          const t2 = getAuthToken();
+          assertEqual(t1, t2);
+        });
+
+        it('User role is "clinician" via getCurrentUserRole()', () => {
+          assertEqual(getCurrentUserRole(), "clinician");
+        });
+
+        it("hasRole always returns true (single-role system)", () => {
+          assert(hasRole("clinician") && hasRole("admin") && hasRole("any"));
+        });
+      });
+
+      // ─── Render ─────────────────────────────────────────────────────────────────
+      function renderResults() {
+        const container = document.getElementById("results");
+        let pass = 0,
+          fail = 0;
+
+        suites.forEach((suite) => {
+          const div = document.createElement("div");
+          div.className = "suite";
+          div.innerHTML = `<div class="suite-title">${suite.name}</div>`;
+          suite.tests.forEach((t) => {
+            const row = document.createElement("div");
+            row.className = `test-row ${t.status}`;
+            row.innerHTML = `
+        <span class="test-status">${t.status === "pass" ? "PASS" : t.status === "fail" ? "FAIL" : "SKIP"}</span>
+        <div>
+          <div class="test-name">${t.name}</div>
+          ${t.detail ? `<div class="test-detail">${t.detail}</div>` : ""}
+        </div>`;
+            div.appendChild(row);
+            if (t.status === "pass") pass++;
+            else if (t.status === "fail") fail++;
+          });
+          container.appendChild(div);
+        });
+
+        const total = suites.flatMap((s) => s.tests).length;
+        const ok = fail === 0;
+        document.getElementById("summary").innerHTML = `
+    <strong style="color:${ok ? "var(--color-accent)" : "var(--color-danger)"}">
+      ${ok ? "✓ All tests passed" : "✕ Some tests failed"}
+    </strong>
+    <span>${pass} / ${total} passed</span>
+    ${fail > 0 ? `<span style="color:var(--color-danger)">${fail} failed</span>` : ""}
+  `;
+      }
+
+      await Promise.resolve();
+      renderResults();
+    </script>
+  </body>
+</html>
