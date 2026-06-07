@@ -459,7 +459,7 @@
     <script type="module">
       import { injectNav } from "./js/components/nav.js";
       import { showToast } from "./js/components/toast.js";
-      import { getQueryParam } from "./js/router.js";
+      import { getQueryParam, navigateTo } from "./js/router.js";
       import { API } from "./js/api-adapter.js";
       import { setState } from "./js/state.js";
       import { renderWaveform, destroyWaveform } from "./js/waveform.js";
@@ -512,7 +512,17 @@
       // ── Read patient_id from URL ─────────────────────────────────────────────────
       const patientId = getQueryParam("patient_id");
       if (!patientId) {
-        window.location.replace("/patients.html");
+        navigateTo("/error.jsp", {
+          code: 404,
+          title: "Patient not found",
+          heading: "Missing patient record",
+          message: "No patient ID was supplied in the URL.",
+          primaryLabel: "Back to Patients",
+          primaryHref: "patients.html",
+          secondaryLabel: "Go back",
+          secondaryHref: "javascript:history.back()",
+        });
+        return;
       }
 
       // ── Render patient profile header ────────────────────────────────────────────
@@ -705,9 +715,37 @@
             API.getPatientPredictions(patientId),
           ]);
 
+          if (!patient) {
+            navigateTo("/error.jsp", {
+              code: 404,
+              title: "Patient not found",
+              heading: "No matching patient",
+              message: `No patient was found for ID ${patientId}.`,
+              primaryLabel: "Back to Patients",
+              primaryHref: "patients.html",
+              secondaryLabel: "Go back",
+              secondaryHref: "javascript:history.back()",
+            });
+            return;
+          }
+
           renderProfile(patient);
           renderHistory(predictions);
         } catch (err) {
+          if (err?.status === 404) {
+            navigateTo("/error.jsp", {
+              code: 404,
+              title: "Patient not found",
+              heading: "No matching patient",
+              message: `No patient was found for ID ${patientId}.`,
+              primaryLabel: "Back to Patients",
+              primaryHref: "patients.html",
+              secondaryLabel: "Go back",
+              secondaryHref: "javascript:history.back()",
+            });
+            return;
+          }
+
           showToast("Failed to load patient record.", "error");
           const loading = document.getElementById("predictions-loading");
           if (loading)

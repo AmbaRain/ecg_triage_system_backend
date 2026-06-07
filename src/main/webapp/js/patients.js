@@ -12,33 +12,37 @@
  * Sprint 4, Step 19 of 25.
  */
 
-import { CONFIG }                             from './config.js';
-import { API }                                from './api-adapter.js';
-import { setState }                           from './state.js';
-import { navigateTo, getQueryParam }          from './router.js';
-import { showToast }                          from './components/toast.js';
-import { createPatientCardSkeletons }         from './components/patient-card.js';
+import { CONFIG } from "./config.js";
+import { API } from "./api-adapter.js";
+import { setState } from "./state.js";
+import { navigateTo, getQueryParam } from "./router.js";
+import { showToast } from "./components/toast.js";
+import { createPatientCardSkeletons } from "./components/patient-card.js";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-let _currentPage   = 1;
-let _currentSearch = '';
+let _currentPage = 1;
+let _currentSearch = "";
 let _totalPatients = 0;
 let _debounceTimer = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleDateString(undefined, {
-      day: '2-digit', month: 'short', year: 'numeric',
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
-  } catch { return iso; }
+  } catch {
+    return iso;
+  }
 }
 
 function getInitials(name) {
-  const parts = (name || '?').trim().split(/\s+/);
+  const parts = (name || "?").trim().split(/\s+/);
   return parts.length === 1
     ? parts[0][0].toUpperCase()
     : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -58,26 +62,26 @@ let searchInput;
  */
 function renderRows(patients) {
   if (!tbody) return;
-  tbody.innerHTML = '';
+  tbody.innerHTML = "";
 
   if (!patients.length) {
-    if (loadingEl)  loadingEl.style.display  = 'none';
-    if (tableWrap)  tableWrap.style.display  = 'none';
-    if (emptyEl)    emptyEl.style.display    = '';
+    if (loadingEl) loadingEl.style.display = "none";
+    if (tableWrap) tableWrap.style.display = "none";
+    if (emptyEl) emptyEl.style.display = "";
     return;
   }
 
-  if (emptyEl)    emptyEl.style.display    = 'none';
-  if (loadingEl)  loadingEl.style.display  = 'none';
-  if (tableWrap)  tableWrap.style.display  = '';
+  if (emptyEl) emptyEl.style.display = "none";
+  if (loadingEl) loadingEl.style.display = "none";
+  if (tableWrap) tableWrap.style.display = "";
 
-  patients.forEach(p => {
+  patients.forEach((p) => {
     const lastDate = fmtDate(p.last_prediction_date);
-    const dob      = fmtDate(p.date_of_birth);
-    const count    = p.prediction_count ?? 0;
+    const dob = fmtDate(p.date_of_birth);
+    const count = p.prediction_count ?? 0;
     const initials = getInitials(p.full_name);
 
-    const tr = document.createElement('tr');
+    const tr = document.createElement("tr");
     tr.dataset.patientId = p.patient_id;
     tr.innerHTML = `
       <td>
@@ -92,7 +96,7 @@ function renderRows(patients) {
       <td class="text-secondary text-sm">${dob}</td>
       <td class="text-secondary text-sm">${lastDate}</td>
       <td>
-        <span class="badge badge--neutral" title="${count} prediction${count !== 1 ? 's' : ''}">
+        <span class="badge badge--neutral" title="${count} prediction${count !== 1 ? "s" : ""}">
           ${count}
         </span>
       </td>
@@ -107,9 +111,9 @@ function renderRows(patients) {
     `;
 
     // Full-row click navigates, unless they clicked the action link itself
-    tr.addEventListener('click', e => {
-      if (e.target.tagName !== 'A' && !e.target.closest('a')) {
-        navigateTo('/patient.html', { patient_id: p.patient_id });
+    tr.addEventListener("click", (e) => {
+      if (e.target.tagName !== "A" && !e.target.closest("a")) {
+        navigateTo("/patient.html", { patient_id: p.patient_id });
       }
     });
 
@@ -121,8 +125,8 @@ function renderRows(patients) {
 
 function renderPagination(total, page, limit) {
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start      = total === 0 ? 0 : (page - 1) * limit + 1;
-  const end        = Math.min(page * limit, total);
+  const start = total === 0 ? 0 : (page - 1) * limit + 1;
+  const end = Math.min(page * limit, total);
 
   if (paginationInfo) {
     paginationInfo.textContent = `Showing ${start}–${end} of ${total} patients`;
@@ -133,21 +137,21 @@ function renderPagination(total, page, limit) {
 
   // Rebuild page-number buttons
   if (pageButtons) {
-    pageButtons.innerHTML = '';
+    pageButtons.innerHTML = "";
     const maxVisible = 5;
     let startPage = Math.max(1, page - 2);
-    let endPage   = Math.min(totalPages, startPage + maxVisible - 1);
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
     if (endPage - startPage < maxVisible - 1) {
       startPage = Math.max(1, endPage - maxVisible + 1);
     }
 
     for (let i = startPage; i <= endPage; i++) {
-      const btn = document.createElement('button');
-      btn.className = `pagination__btn${i === page ? ' active' : ''}`;
+      const btn = document.createElement("button");
+      btn.className = `pagination__btn${i === page ? " active" : ""}`;
       btn.textContent = i;
-      btn.setAttribute('aria-label', `Page ${i}`);
-      btn.setAttribute('aria-current', i === page ? 'page' : 'false');
-      btn.addEventListener('click', () => {
+      btn.setAttribute("aria-label", `Page ${i}`);
+      btn.setAttribute("aria-current", i === page ? "page" : "false");
+      btn.addEventListener("click", () => {
         _currentPage = i;
         loadPatients();
       });
@@ -163,42 +167,54 @@ function renderPagination(total, page, limit) {
  */
 async function loadPatients() {
   // Show skeleton while loading
-  if (loadingEl)  loadingEl.style.display = '';
-  if (tableWrap)  tableWrap.style.display = 'none';
-  if (emptyEl)    emptyEl.style.display   = 'none';
+  if (loadingEl) loadingEl.style.display = "";
+  if (tableWrap) tableWrap.style.display = "none";
+  if (emptyEl) emptyEl.style.display = "none";
 
   try {
     const { patients, total, page, limit } = await API.getPatients({
-      page:   _currentPage,
-      limit:  CONFIG.PATIENTS_PER_PAGE,
+      page: _currentPage,
+      limit: CONFIG.PATIENTS_PER_PAGE,
       search: _currentSearch,
     });
 
     _totalPatients = total;
-    setState('patientList', patients);
+    setState("patientList", patients);
 
-    const countLabel = document.getElementById('patients-count-label');
+    const countLabel = document.getElementById("patients-count-label");
     if (countLabel) {
-      countLabel.textContent = `${total} patient${total !== 1 ? 's' : ''} registered`;
+      countLabel.textContent = `${total} patient${total !== 1 ? "s" : ""} registered`;
     }
 
     renderRows(patients);
     renderPagination(total, page, limit ?? CONFIG.PATIENTS_PER_PAGE);
 
+    if (_currentSearch && total === 0) {
+      navigateTo("/error.jsp", {
+        code: 404,
+        title: "Patient not found",
+        heading: "No matching patient",
+        message: `No patient matched "${_currentSearch}". Try a different name or return to the patient list.`,
+        primaryLabel: "Back to Patients",
+        primaryHref: "patients.html",
+        secondaryLabel: "Search again",
+        secondaryHref: "patients.html",
+      });
+      return;
+    }
+
     // Sync URL without full reload
     const url = new URL(window.location.href);
-    if (_currentSearch) url.searchParams.set('search', _currentSearch);
-    else                url.searchParams.delete('search');
-    url.searchParams.set('page', String(_currentPage));
-    window.history.replaceState({}, '', url.toString());
-
+    if (_currentSearch) url.searchParams.set("search", _currentSearch);
+    else url.searchParams.delete("search");
+    url.searchParams.set("page", String(_currentPage));
+    window.history.replaceState({}, "", url.toString());
   } catch (err) {
     if (loadingEl) {
-      loadingEl.innerHTML =
-        `<span style="color:var(--color-danger)">Failed to load patients.</span>`;
-      loadingEl.style.display = '';
+      loadingEl.innerHTML = `<span style="color:var(--color-danger)">Failed to load patients.</span>`;
+      loadingEl.style.display = "";
     }
-    showToast(err?.message || 'Failed to load patient list.', 'error');
+    showToast(err?.message || "Failed to load patient list.", "error");
   }
 }
 
@@ -210,55 +226,61 @@ async function loadPatients() {
  */
 export function initPatientsPage() {
   // Resolve DOM refs
-  tbody          = document.getElementById('patients-tbody');
-  loadingEl      = document.getElementById('patients-loading');
-  tableWrap      = document.getElementById('patients-table-wrap');
-  emptyEl        = document.getElementById('patients-empty');
-  paginationInfo = document.getElementById('pagination-info');
-  btnPrev        = document.getElementById('btn-page-prev');
-  btnNext        = document.getElementById('btn-page-next');
-  pageButtons    = document.getElementById('page-buttons');
-  searchInput    = document.getElementById('patients-search');
+  tbody = document.getElementById("patients-tbody");
+  loadingEl = document.getElementById("patients-loading");
+  tableWrap = document.getElementById("patients-table-wrap");
+  emptyEl = document.getElementById("patients-empty");
+  paginationInfo = document.getElementById("pagination-info");
+  btnPrev = document.getElementById("btn-page-prev");
+  btnNext = document.getElementById("btn-page-next");
+  pageButtons = document.getElementById("page-buttons");
+  searchInput = document.getElementById("patients-search");
 
   // Show loading skeletons immediately
   if (loadingEl) {
-    loadingEl.innerHTML = '';
+    loadingEl.innerHTML = "";
     loadingEl.appendChild(createPatientCardSkeletons(CONFIG.PATIENTS_PER_PAGE));
   }
 
   // Seed from URL params (e.g. arriving from dashboard search)
-  _currentSearch = getQueryParam('search') || '';
-  _currentPage   = parseInt(getQueryParam('page') || '1', 10) || 1;
+  _currentSearch = getQueryParam("search") || "";
+  _currentPage = parseInt(getQueryParam("page") || "1", 10) || 1;
   if (searchInput && _currentSearch) searchInput.value = _currentSearch;
 
   // Search debounce
   if (searchInput) {
-    searchInput.addEventListener('input', () => {
+    searchInput.addEventListener("input", () => {
       clearTimeout(_debounceTimer);
       _debounceTimer = setTimeout(() => {
         _currentSearch = searchInput.value.trim();
-        _currentPage   = 1;
+        _currentPage = 1;
         loadPatients();
       }, 350);
     });
     // Immediate search on Enter
-    searchInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
         clearTimeout(_debounceTimer);
         _currentSearch = searchInput.value.trim();
-        _currentPage   = 1;
+        _currentPage = 1;
         loadPatients();
       }
     });
   }
 
   // Pagination buttons
-  btnPrev?.addEventListener('click', () => {
-    if (_currentPage > 1) { _currentPage--; loadPatients(); }
+  btnPrev?.addEventListener("click", () => {
+    if (_currentPage > 1) {
+      _currentPage--;
+      loadPatients();
+    }
   });
-  btnNext?.addEventListener('click', () => {
+  btnNext?.addEventListener("click", () => {
     const totalPages = Math.ceil(_totalPatients / CONFIG.PATIENTS_PER_PAGE);
-    if (_currentPage < totalPages) { _currentPage++; loadPatients(); }
+    if (_currentPage < totalPages) {
+      _currentPage++;
+      loadPatients();
+    }
   });
 
   // Initial load
