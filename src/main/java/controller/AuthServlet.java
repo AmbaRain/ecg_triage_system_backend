@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -12,7 +11,9 @@ import javax.servlet.http.HttpSession;
 import util.ServletResponseUtil;
 
 @WebServlet(name = "AuthServlet", urlPatterns = {"/api/auth/*"})
-public class AuthServlet extends HttpServlet {
+public class AuthServlet extends BaseApiServlet {
+
+    private final service.AuthService authService = new service.AuthService();
 
     private static final String TOKEN = "mock.jwt.token.abc123";
 
@@ -57,15 +58,21 @@ public class AuthServlet extends HttpServlet {
             return;
         }
 
-        String principal = username != null ? username : email;
+        model.User user = authService.authenticate(username, email, password);
+        if (user == null) {
+            ServletResponseUtil.writeJson(response, HttpServletResponse.SC_UNAUTHORIZED,
+                "{\"error\":\"invalid credentials\"}");
+            return;
+        }
+
         HttpSession session = request.getSession(true);
-        session.setAttribute("authUser", mockUser(principal));
+        session.setAttribute("authUser", user.getUsername());
         session.setAttribute("authToken", TOKEN);
 
         ServletResponseUtil.writeJson(response, HttpServletResponse.SC_OK,
                 "{"
                         + "\"token\":\"" + TOKEN + "\"," 
-                        + "\"user\":" + mockUser(principal)
+                + "\"user\":" + toUserJson(user)
                         + "}");
     }
 
@@ -81,13 +88,9 @@ public class AuthServlet extends HttpServlet {
 
     private void handleMe(HttpServletRequest request, HttpServletResponse response) throws IOException {
         HttpSession session = request.getSession(false);
-        String userJson = session != null ? (String) session.getAttribute("authUser") : null;
-
-        if (userJson == null) {
-            userJson = mockUser("dr.adeyemi");
-        }
-
-        ServletResponseUtil.writeJson(response, HttpServletResponse.SC_OK, userJson);
+        String username = session != null ? (String) session.getAttribute("authUser") : null;
+        model.User user = authService.getCurrentUser(username == null ? "dr.adeyemi" : username);
+        ServletResponseUtil.writeJson(response, HttpServletResponse.SC_OK, toUserJson(user));
     }
 
     private String trimToNull(String value) {
@@ -99,12 +102,12 @@ public class AuthServlet extends HttpServlet {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private String mockUser(String username) {
+    private String toUserJson(model.User user) {
         return "{"
-                + "\"user_id\":\"u001\"," 
-                + "\"username\":\"" + ServletResponseUtil.escapeJson(username) + "\"," 
-                + "\"full_name\":\"Dr. Amaka Adeyemi\"," 
-                + "\"role\":\"clinician\""
+            + "\"user_id\":\"u" + String.format("%03d", user.getId()) + "\",
+            + "\"username\":\"" + ServletResponseUtil.escapeJson(user.getUsername()) + "\",
+            + "\"full_name\":\"" + ServletResponseUtil.escapeJson(user.getFullName()) + "\",
+                + "\"role\":\"" + ServletResponseUtil.escapeJson(user.getRole()) + "\""
                 + "}";
     }
 }

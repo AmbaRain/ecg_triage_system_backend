@@ -6,23 +6,15 @@ import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import util.ServletResponseUtil;
 
 @WebServlet(name = "PatientServlet", urlPatterns = {"/api/patients/*"})
-public class PatientServlet extends HttpServlet {
+public class PatientServlet extends BaseApiServlet {
 
-    private static final List<String[]> PATIENTS = new ArrayList<>();
-
-    static {
-        PATIENTS.add(new String[] {"p_001", "Amaka Adeyemi", "1978-04-12", "2026-06-07T08:50:00Z", "4"});
-        PATIENTS.add(new String[] {"p_002", "Chidi Okonkwo", "1981-11-04", "2026-06-06T14:20:00Z", "2"});
-        PATIENTS.add(new String[] {"p_003", "Fatima Al-Rashid", "1974-09-19", "2026-06-05T10:05:00Z", "1"});
-        PATIENTS.add(new String[] {"p_004", "Priya Nair", "1988-01-23", "2026-06-04T16:15:00Z", "3"});
-    }
+    private final service.PatientService patientService = new service.PatientService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -62,23 +54,15 @@ public class PatientServlet extends HttpServlet {
         int page = parseInt(request.getParameter("page"), 1);
         int limit = parseInt(request.getParameter("limit"), 20);
 
-        List<String[]> filtered = new ArrayList<>();
-        for (String[] patient : PATIENTS) {
-            if (search == null || search.isBlank() || patient[1].toLowerCase().contains(search.toLowerCase())) {
-                filtered.add(patient);
-            }
-        }
-
-        int total = filtered.size();
-        int start = Math.max(0, (page - 1) * limit);
-        int end = Math.min(total, start + limit);
+        List<model.Patient> patients = patientService.listPatients(search, page, limit);
+        int total = patientService.countPatients(search);
 
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         sb.append("\"patients\":[");
-        for (int i = start; i < end; i++) {
-            if (i > start) sb.append(',');
-            appendPatient(sb, filtered.get(i));
+        for (int i = 0; i < patients.size(); i++) {
+            if (i > 0) sb.append(',');
+            appendPatient(sb, patients.get(i));
         }
         sb.append("],");
         sb.append("\"total\":").append(total).append(',');
@@ -89,50 +73,75 @@ public class PatientServlet extends HttpServlet {
     }
 
     private String patientDetail(String patientId) {
-        String[] patient = findPatient(patientId);
+        int resolvedId = parseFlexiblePatientId(patientId);
+        model.Patient patient = patientService.getPatientById(resolvedId);
         if (patient == null) {
-            patient = PATIENTS.get(0);
+            patient = patientService.getPatientById(1);
         }
 
+        return patient == null ? "{}" : patientJson(patient);
+    }
+
+    private String patientPredictions(String patientId) {
+        int resolvedId = parseFlexiblePatientId(patientId);
+        List<model.Prediction> predictions = patientService.getPredictionsForPatient(resolvedId);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        sb.append("\"patient_id\":\"").append(ServletResponseUtil.escapeJson(patientId)).append("\",");
+        sb.append("\"predictions\":[");
+        for (int i = 0; i < predictions.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append(predictionJson(predictions.get(i), resolvedId));
+        }
+        sb.append("]");
+        sb.append("}");
+        return sb.toString();
+    }
+
+    private void appendPatient(StringBuilder sb, model.Patient patient) {
+        sb.append("{");
+        sb.append("\"patient_id\":\"p_").append(String.format("%03d", patient.getId())).append("\",");
+        sb.append("\"full_name\":\"").append(ServletResponseUtil.escapeJson(patient.getFullName())).append("\",");
+        sb.append("\"date_of_birth\":\"").append(String.valueOf(patient.getDob())).append("\",");
+        sb.append("\"last_prediction_date\":\"").append(String.valueOf(patient.getCreatedAt())).append("\",");
+        sb.append("\"prediction_count\":1");
+        sb.append("}");
+    }
+
+    private String patientJson(model.Patient patient) {
         StringBuilder sb = new StringBuilder();
         appendPatient(sb, patient);
         return sb.toString();
     }
 
-    private String patientPredictions(String patientId) {
+    private String predictionJson(model.Prediction prediction, int patientId) {
         return "{"
-                + "\"patient_id\":\"" + ServletResponseUtil.escapeJson(patientId) + "\"," 
-                + "\"predictions\":["
-                + "{"
-                + "\"prediction_id\":\"pred_001\"," 
-                + "\"patient_id\":\"" + ServletResponseUtil.escapeJson(patientId) + "\"," 
-                + "\"timestamp\":\"2026-06-07T09:15:00Z\"," 
+            + "\"prediction_id\":\"pred_" + String.format("%03d", prediction.getId()) + "\",
+            + "\"patient_id\":\"p_" + String.format("%03d", patientId) + "\",
+            + "\"timestamp\":\"" + String.valueOf(prediction.getTimestamp()) + "\",
                 + "\"status\":\"success\"," 
-                + "\"diagnosis\":{\"primary_label\":\"Atrial Fibrillation\",\"confidence\":0.91,\"secondary_labels\":[{\"label\":\"Normal Sinus Rhythm\",\"confidence\":0.06}]},"
+                + "\"diagnosis\":{\"primary_label\":\"" + ServletResponseUtil.escapeJson(prediction.getPrimaryLabel()) + "\",\"confidence\":" + prediction.getConfidence() + ",\"secondary_labels\":[{\"label\":\"Normal Sinus Rhythm\",\"confidence\":0.06}]},"
                 + "\"waveform_data\":{\"leads\":[\"I\",\"II\",\"III\",\"aVR\",\"aVL\",\"aVF\",\"V1\",\"V2\",\"V3\",\"V4\",\"V5\",\"V6\"],\"signals\":[],\"sampling_rate\":500},"
-                + "\"metadata\":{\"record_id\":\"rec_001\",\"duration_seconds\":10,\"num_leads\":12,\"source_format\":\"csv\"}"
-                + "}"
-                + "]"
+                + "\"metadata\":{\"record_id\":\"rec_" + String.format("%03d", prediction.getRecordId()) + "\",\"duration_seconds\":10,\"num_leads\":12,\"source_format\":\"csv\"}"
                 + "}";
     }
 
-    private String[] findPatient(String patientId) {
-        for (String[] patient : PATIENTS) {
-            if (patient[0].equals(patientId)) {
-                return patient;
-            }
+    private int parseFlexiblePatientId(String value) {
+        if (value == null) {
+            return 1;
         }
-        return null;
-    }
 
-    private void appendPatient(StringBuilder sb, String[] patient) {
-        sb.append("{");
-        sb.append("\"patient_id\":\"").append(ServletResponseUtil.escapeJson(patient[0])).append("\",");
-        sb.append("\"full_name\":\"").append(ServletResponseUtil.escapeJson(patient[1])).append("\",");
-        sb.append("\"date_of_birth\":\"").append(ServletResponseUtil.escapeJson(patient[2])).append("\",");
-        sb.append("\"last_prediction_date\":\"").append(ServletResponseUtil.escapeJson(patient[3])).append("\",");
-        sb.append("\"prediction_count\":").append(patient[4]);
-        sb.append("}");
+        String cleaned = value.trim().toLowerCase();
+        if (cleaned.startsWith("p_")) {
+            cleaned = cleaned.substring(2);
+        }
+
+        try {
+            return Integer.parseInt(cleaned);
+        } catch (NumberFormatException ex) {
+            return 1;
+        }
     }
 
     private int parseInt(String value, int fallback) {

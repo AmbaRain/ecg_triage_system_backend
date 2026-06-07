@@ -2,6 +2,7 @@ package dao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 import model.ECGRecord;
 import util.DBConnection;
@@ -24,7 +25,7 @@ public class ECGRecordDAO {
 
             return stmt.executeUpdate() > 0;
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 

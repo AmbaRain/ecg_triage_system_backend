@@ -4,14 +4,15 @@ import java.io.IOException;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import util.ServletResponseUtil;
 
 @WebServlet(name = "PredictionServlet", urlPatterns = {"/api/predictions/*"})
-public class PredictionServlet extends HttpServlet {
+public class PredictionServlet extends BaseApiServlet {
+
+    private final service.PredictionService predictionService = new service.PredictionService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -23,7 +24,9 @@ public class PredictionServlet extends HttpServlet {
             return;
         }
 
-        ServletResponseUtil.writeJson(response, HttpServletResponse.SC_OK, mockPrediction(predictionId, "p_001", "csv"));
+        int resolvedId = parseFlexibleId(predictionId);
+        model.Prediction prediction = predictionService.getPredictionById(resolvedId);
+        ServletResponseUtil.writeJson(response, HttpServletResponse.SC_OK, predictionJson(prediction, resolvedId, "csv"));
     }
 
     private String extractPathId(String pathInfo) {
@@ -36,15 +39,15 @@ public class PredictionServlet extends HttpServlet {
         return candidate.isEmpty() ? null : candidate;
     }
 
-    private String mockPrediction(String predictionId, String patientId, String sourceFormat) {
+    private String predictionJson(model.Prediction prediction, int patientId, String sourceFormat) {
         return "{"
-                + "\"prediction_id\":\"" + ServletResponseUtil.escapeJson(predictionId) + "\"," 
-                + "\"patient_id\":\"" + ServletResponseUtil.escapeJson(patientId) + "\"," 
-                + "\"timestamp\":\"2026-06-07T09:15:00Z\"," 
+            + "\"prediction_id\":\"pred_" + String.format("%03d", prediction.getId()) + "\",
+            + "\"patient_id\":\"p_" + String.format("%03d", patientId) + "\",
+            + "\"timestamp\":\"" + String.valueOf(prediction.getTimestamp()) + "\",
                 + "\"status\":\"success\"," 
                 + "\"diagnosis\":{"
-                + "\"primary_label\":\"Atrial Fibrillation\"," 
-                + "\"confidence\":0.91," 
+            + "\"primary_label\":\"" + ServletResponseUtil.escapeJson(prediction.getPrimaryLabel()) + "\",
+                + "\"confidence\":" + prediction.getConfidence() + ","
                 + "\"secondary_labels\":["
                 + "{\"label\":\"Normal Sinus Rhythm\",\"confidence\":0.06},"
                 + "{\"label\":\"Left Bundle Branch Block\",\"confidence\":0.03}"
@@ -62,5 +65,22 @@ public class PredictionServlet extends HttpServlet {
                 + "\"source_format\":\"" + ServletResponseUtil.escapeJson(sourceFormat) + "\""
                 + "}"
                 + "}";
+    }
+
+    private int parseFlexibleId(String value) {
+        if (value == null) {
+            return 1;
+        }
+
+        String cleaned = value.trim().toLowerCase();
+        if (cleaned.startsWith("pred_")) {
+            cleaned = cleaned.substring(5);
+        }
+
+        try {
+            return Integer.parseInt(cleaned);
+        } catch (NumberFormatException ex) {
+            return 1;
+        }
     }
 }

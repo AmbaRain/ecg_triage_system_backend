@@ -9,33 +9,50 @@ import java.sql.SQLException;
  */
 public class DBConnection {
     private static Connection connection = null;
-    
-    private static final String URL = "jdbc:mysql://localhost:3306/ecg_system_db";
-    private static final String USER = "root";
-    private static final String PASSWORD = "password";
+package util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+/**
+ * Shared JDBC connection helper.
+ *
+ * This class keeps connection bootstrapping out of servlets and DAOs. The
+ * values are resolved from environment variables first so the project can be
+ * deployed without source changes.
+ */
+public final class DBConnection {
+
+    private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/ecg_system";
+    private static final String DEFAULT_USER = "root";
+    private static final String DEFAULT_PASSWORD = "";
     private static final String DRIVER = "com.mysql.cj.jdbc.Driver";
-    
-    // Private constructor to prevent instantiation
+
     private DBConnection() {
     }
-    
-    /**
-     * Retrieves or establishes the database connection
-     * @return Active database Connection instance
-     * @throws SQLException if connection fails
-     */
+
     public static Connection getConnection() throws SQLException {
-        // Validate if connection is null or closed
-        if (connection == null || connection.isClosed()) {
-            try {
-                // Register MySQL JDBC driver
-                Class.forName(DRIVER);
-                // Instantiate new connection via DriverManager
-                connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            } catch (ClassNotFoundException e) {
-                throw new SQLException("MySQL driver not found", e);
-            }
+        try {
+            Class.forName(DRIVER);
+        } catch (ClassNotFoundException ex) {
+            throw new SQLException("MySQL JDBC driver not found on the classpath", ex);
         }
-        return connection;
+
+        return DriverManager.getConnection(
+                readConfig("ECG_DB_URL", DEFAULT_URL),
+                readConfig("ECG_DB_USER", DEFAULT_USER),
+                readConfig("ECG_DB_PASSWORD", DEFAULT_PASSWORD));
+    }
+
+    private static String readConfig(String key, String fallback) {
+        String value = System.getProperty(key);
+        if (value == null || value.isBlank()) {
+            value = System.getenv(key);
+        }
+
+        return (value == null || value.isBlank()) ? fallback : value;
+    }
+}
     }
 }
